@@ -116,10 +116,102 @@ router.post('/positions',
  * @swagger
  * /api/elections/positions/{positionId}/candidates:
  *   get:
- *     summary: Get candidates for position (All authenticated users)
- *     tags: [Elections]
+ *     summary: Get all candidates for a specific position
+ *     tags: [Elections - Candidates]
+ *     description: |
+ *       Retrieves all active candidates running for a specific position.
+ *       Available to all authenticated users.
+ *       
+ *       **Returns:**
+ *       - List of candidates with their details
+ *       - Candidate photos and biographies
+ *       - Position information
+ *       - Only active candidates are returned
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: positionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         example: "clx1234567890"
+ *         description: "ID of the position to get candidates for"
+ *     responses:
+ *       200:
+ *         description: Candidates retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 candidates:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                         example: "clx1111111111"
+ *                       firstName:
+ *                         type: string
+ *                         example: "John"
+ *                       lastName:
+ *                         type: string
+ *                         example: "Doe"
+ *                       bio:
+ *                         type: string
+ *                         example: "Experienced medical practitioner with 15 years in healthcare leadership"
+ *                       photo:
+ *                         type: string
+ *                         example: "https://example.com/photos/john-doe.jpg"
+ *                       positionId:
+ *                         type: string
+ *                         example: "clx1234567890"
+ *                       isActive:
+ *                         type: boolean
+ *                         example: true
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *                         example: "2024-01-15T10:30:00Z"
+ *                       user:
+ *                         type: object
+ *                         nullable: true
+ *                         properties:
+ *                           id:
+ *                             type: string
+ *                             example: "clx0987654321"
+ *                           memberName:
+ *                             type: string
+ *                             example: "Dr. John Doe"
+ *                           branch:
+ *                             type: string
+ *                             example: "WESTERN"
+ *                 position:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                       example: "clx1234567890"
+ *                     title:
+ *                       type: string
+ *                       example: "President"
+ *                     description:
+ *                       type: string
+ *                       example: "Union President position"
+ *                     maxCandidates:
+ *                       type: integer
+ *                       example: 1
+ *                 totalCandidates:
+ *                   type: integer
+ *                   example: 3
+ *       401:
+ *         description: Unauthorized - Invalid or missing token
+ *       404:
+ *         description: Position not found
+ *       500:
+ *         description: Internal server error
  */
 router.get('/positions/:positionId/candidates', 
   authenticateToken,
@@ -130,10 +222,158 @@ router.get('/positions/:positionId/candidates',
  * @swagger
  * /api/elections/candidates:
  *   post:
- *     summary: Add new candidate (Admin/SuperAdmin only)
- *     tags: [Elections]
+ *     summary: Add new candidate to election position
+ *     tags: [Elections - Candidates]
+ *     description: |
+ *       Creates a new candidate for a specific position in an election.
+ *       Only admins and super admins can add candidates.
+ *       
+ *       **Required Fields:**
+ *       - firstName: Candidate's first name
+ *       - lastName: Candidate's last name  
+ *       - positionId: ID of the position they're running for
+ *       
+ *       **Optional Fields:**
+ *       - bio: Candidate biography/description
+ *       - photo: URL to candidate photo
+ *       - userId: Link to existing user account
  *     security:
  *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - firstName
+ *               - lastName
+ *               - positionId
+ *             properties:
+ *               firstName:
+ *                 type: string
+ *                 example: "John"
+ *                 description: "Candidate's first name"
+ *               lastName:
+ *                 type: string
+ *                 example: "Doe"
+ *                 description: "Candidate's last name"
+ *               positionId:
+ *                 type: string
+ *                 example: "clx1234567890"
+ *                 description: "ID of the position candidate is running for"
+ *               bio:
+ *                 type: string
+ *                 example: "Experienced medical practitioner with 15 years in healthcare leadership"
+ *                 description: "Candidate biography (optional)"
+ *               photo:
+ *                 type: string
+ *                 example: "https://example.com/photos/john-doe.jpg"
+ *                 description: "URL to candidate photo (optional)"
+ *               userId:
+ *                 type: string
+ *                 example: "clx0987654321"
+ *                 description: "Link to existing user account (optional)"
+ *     responses:
+ *       201:
+ *         description: Candidate created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Candidate created successfully"
+ *                 candidate:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                       example: "clx1111111111"
+ *                     firstName:
+ *                       type: string
+ *                       example: "John"
+ *                     lastName:
+ *                       type: string
+ *                       example: "Doe"
+ *                     bio:
+ *                       type: string
+ *                       example: "Experienced medical practitioner..."
+ *                     photo:
+ *                       type: string
+ *                       example: "https://example.com/photos/john-doe.jpg"
+ *                     positionId:
+ *                       type: string
+ *                       example: "clx1234567890"
+ *                     isActive:
+ *                       type: boolean
+ *                       example: true
+ *                     createdAt:
+ *                       type: string
+ *                       format: date-time
+ *                       example: "2024-01-15T10:30:00Z"
+ *       400:
+ *         description: Validation error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "First name is required"
+ *                 errors:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       field:
+ *                         type: string
+ *                         example: "firstName"
+ *                       message:
+ *                         type: string
+ *                         example: "First name is required"
+ *       401:
+ *         description: Unauthorized - Invalid or missing token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Access token required"
+ *       403:
+ *         description: Forbidden - Insufficient permissions
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Admin access required"
+ *       404:
+ *         description: Position not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Position not found"
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Internal server error"
  */
 router.post('/candidates', 
   authenticateToken,

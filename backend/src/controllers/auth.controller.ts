@@ -24,10 +24,12 @@ class AuthController {
         return;
       }
 
-      // Use email if available, otherwise use a default email for testing
-      const emailToSend = user.email || 'pishimweaime7@gmail.com';
-      
-      const otpResult = await otpService.sendOTP(emailToSend, 'LOGIN');
+      if (!user.email) {
+        res.status(400).json({ message: 'No email address found for this user. Please contact admin.' });
+        return;
+      }
+      console.log('Sending OTP to email:', user.email);
+      const otpResult = await otpService.sendOTP(user.email, 'LOGIN');
       
       if (!otpResult.success) {
         res.status(500).json({ message: 'Failed to send OTP' });
@@ -37,7 +39,7 @@ class AuthController {
       res.json({ 
         message: 'OTP sent to your email',
         requiresOTP: true,
-        email: emailToSend,
+        email: user.email,
         memberId: memberId
       });
     } catch (error) {
@@ -60,9 +62,12 @@ class AuthController {
         return;
       }
 
-      const emailToVerify = user.email || 'pishimweaime7@gmail.com';
+      if (!user.email) {
+        res.status(400).json({ message: 'No email address found for this user. Please contact admin.' });
+        return;
+      }
       
-      const otpResult = await otpService.verifyOTP(emailToVerify, otp, 'LOGIN');
+      const otpResult = await otpService.verifyOTP(user.email, otp, 'LOGIN');
       
       if (!otpResult.success) {
         res.status(401).json({ message: otpResult.message });

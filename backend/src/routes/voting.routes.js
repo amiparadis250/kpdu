@@ -9,6 +9,9 @@ const router = express.Router();
  *   post:
  *     summary: Register voter on blockchain
  *     tags: [Blockchain]
+ *     security:
+ *       - bearerAuth: []
+ *       - apiKeyAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -23,6 +26,8 @@ const router = express.Router();
  *     responses:
  *       200:
  *         description: Voter registered successfully
+ *       401:
+ *         description: Unauthorized
  *       400:
  *         description: Missing required fields
  *       500:

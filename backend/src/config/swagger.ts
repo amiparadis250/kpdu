@@ -19,6 +19,20 @@ const options = {
       }
     ],
     components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+          description: 'Enter JWT token'
+        },
+        apiKeyAuth: {
+          type: 'apiKey',
+          in: 'header',
+          name: 'Authorization',
+          description: 'Enter: Bearer <token>'
+        }
+      },
       schemas: {
         User: {
           type: 'object',
@@ -58,9 +72,14 @@ const options = {
           }
         }
       }
-    }
+    },
+    security: [
+      {
+        bearerAuth: []
+      }
+    ]
   },
-  apis: ['./src/routes/*.ts']
+  apis: ['./src/routes/*.ts', './src/routes/*.js']
 };
 
 export const specs = swaggerJsdoc(options);

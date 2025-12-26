@@ -16,6 +16,12 @@ class EmailService {
   }
 
   async sendOTP(contact: string, otp: string, purpose = 'login'): Promise<boolean> {
+    // Validate email address
+    if (!contact || contact.trim() === '') {
+      console.error('❌ No email address provided');
+      return false;
+    }
+
     const subject = this.getSubject(purpose);
     const html = this.getOTPTemplate(otp, purpose);
 

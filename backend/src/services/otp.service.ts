@@ -10,6 +10,16 @@ class OTPService {
 
   async sendOTP(contact: string, purpose: 'LOGIN' | 'VOTE' | 'PASSWORD_RESET'): Promise<OTPResponse> {
     try {
+      // Validate email address
+      if (!contact || contact.trim() === '') {
+        return { success: false, message: 'Email address is required' };
+      }
+
+      // Basic email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(contact)) {
+        return { success: false, message: 'Invalid email address format' };
+      }
       // Invalidate existing OTPs
       await prisma.oTPSession.updateMany({
         where: { 
