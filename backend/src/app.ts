@@ -8,6 +8,12 @@ import { prisma } from './lib/prisma';
 import { specs } from './config/swagger';
 import authRoutes from './routes/auth.routes';
 import userRoutes from './routes/user.routes';
+import electionRoutes from './routes/election.routes';
+import branchRoutes from './routes/branch.routes';
+import voteRoutes from './routes/vote.routes';
+import notificationRoutes from './routes/notification.routes';
+import dashboardRoutes from './routes/dashboard.routes';
+import auditRoutes from './routes/audit.routes';
 
 dotenv.config();
 
@@ -48,6 +54,12 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs, {
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/elections', electionRoutes);
+app.use('/api/branches', branchRoutes);
+app.use('/api/votes', voteRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/audit', auditRoutes);
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

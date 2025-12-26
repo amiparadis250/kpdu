@@ -19,13 +19,6 @@ const options = {
       }
     ],
     components: {
-      securitySchemes: {
-        bearerAuth: {
-          type: 'http',
-          scheme: 'bearer',
-          bearerFormat: 'JWT'
-        }
-      },
       schemas: {
         User: {
           type: 'object',
@@ -45,8 +38,7 @@ const options = {
               enum: ['MEMBER', 'ADMIN', 'SUPERUSERADMIN']
             },
             isActive: { type: 'boolean' },
-            hasVoted: { type: 'boolean' },
-            lastLogin: { type: 'string', format: 'date-time', nullable: true }
+            hasVoted: { type: 'boolean' }
           }
         },
         LoginRequest: {
@@ -63,39 +55,6 @@ const options = {
           properties: {
             memberId: { type: 'string', example: '12345' },
             otp: { type: 'string', example: '123456' }
-          }
-        },
-        AuthResponse: {
-          type: 'object',
-          properties: {
-            message: { type: 'string' },
-            token: { type: 'string' },
-            user: { $ref: '#/components/schemas/User' }
-          }
-        },
-        ImportResult: {
-          type: 'object',
-          properties: {
-            message: { type: 'string' },
-            results: {
-              type: 'object',
-              properties: {
-                total: { type: 'number' },
-                successful: { type: 'number' },
-                failed: { type: 'number' },
-                errors: {
-                  type: 'array',
-                  items: {
-                    type: 'object',
-                    properties: {
-                      row: { type: 'number' },
-                      data: { type: 'object' },
-                      error: { type: 'string' }
-                    }
-                  }
-                }
-              }
-            }
           }
         }
       }

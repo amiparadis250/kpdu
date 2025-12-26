@@ -29,7 +29,7 @@ class OTPService {
       // Create OTP session
       await prisma.oTPSession.create({
         data: {
-          mobile: contact,
+          email: contact,
           otp,
           purpose,
           expiresAt

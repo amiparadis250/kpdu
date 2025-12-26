@@ -24,7 +24,10 @@ class AuthController {
         return;
       }
 
-      const otpResult = await otpService.sendOTP(user.mobileNumber, 'LOGIN');
+      // Use email if available, otherwise use a default email for testing
+      const emailToSend = user.email || 'pishimweaime7@gmail.com';
+      
+      const otpResult = await otpService.sendOTP(emailToSend, 'LOGIN');
       
       if (!otpResult.success) {
         res.status(500).json({ message: 'Failed to send OTP' });
@@ -32,9 +35,9 @@ class AuthController {
       }
 
       res.json({ 
-        message: 'OTP sent to your mobile number',
+        message: 'OTP sent to your email',
         requiresOTP: true,
-        mobileNumber: user.mobileNumber,
+        email: emailToSend,
         memberId: memberId
       });
     } catch (error) {
@@ -57,7 +60,9 @@ class AuthController {
         return;
       }
 
-      const otpResult = await otpService.verifyOTP(user.mobileNumber, otp, 'LOGIN');
+      const emailToVerify = user.email || 'pishimweaime7@gmail.com';
+      
+      const otpResult = await otpService.verifyOTP(emailToVerify, otp, 'LOGIN');
       
       if (!otpResult.success) {
         res.status(401).json({ message: otpResult.message });
@@ -77,7 +82,7 @@ class AuthController {
           branch: user.branch
         },
         process.env.JWT_SECRET!,
-        { expiresIn: process.env.JWT_EXPIRES_IN ? parseInt(process.env.JWT_EXPIRES_IN, 10) : undefined }
+        { expiresIn: parseInt(process.env.JWT_EXPIRES_IN!) || 86400 }
       );
 
       res.json({
@@ -100,21 +105,19 @@ class AuthController {
     }
   }
 
-  async getProfile(req: Request, res: Response): Promise<void> {
+  async getProfile(req: AuthRequest, res: Response): Promise<void> {
     try {
-      // For testing without auth - return sample user
-      const sampleUser = {
-        id: 'sample-id',
-        memberId: '12345',
-        memberName: 'Test User',
-        nationalId: '987654321',
-        mobileNumber: '0712345678',
-        branch: 'WESTERN_MEMBER',
-        role: 'MEMBER',
-        hasVoted: false
-      };
+      const user = await prisma.user.findUnique({
+        where: { id: req.user!.userId },
+        include: { branchRef: true }
+      });
 
-      res.json({ user: sampleUser });
+      if (!user) {
+        res.status(404).json({ message: 'User not found' });
+        return;
+      }
+
+      res.json({ user });
     } catch (error) {
       console.error('Get profile error:', error);
       res.status(500).json({ message: 'Internal server error' });

@@ -3,11 +3,12 @@ import { Request } from 'express';
 export interface User {
   id: string;
   memberId: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  password: string;
-  role: 'member' | 'admin' | 'superuseradmin';
+  memberName: string;
+  nationalId: string;
+  mobileNumber: string;
+  branch: string;
+  email?: string;
+  role: 'MEMBER' | 'ADMIN' | 'SUPERUSERADMIN';
   branchId?: string;
   isActive: boolean;
   hasVoted: boolean;
@@ -18,9 +19,9 @@ export interface User {
 
 export interface JWTPayload {
   userId: string;
-  email: string;
-  role: string;
   memberId: string;
+  role: string;
+  branch: string;
   iat?: number;
   exp?: number;
 }

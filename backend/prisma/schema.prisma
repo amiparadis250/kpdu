@@ -146,6 +146,10 @@ model VoteCount {
   @@map("vote_counts")
 }
 
+// NOTE: This model is DEPRECATED and should be removed in production
+// Individual votes are stored on ICP blockchain, not in traditional database
+// This model exists only for development/testing purposes
+
 enum Role {
   MEMBER
   ADMIN

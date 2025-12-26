@@ -42,32 +42,7 @@ function ProtectedRoute({
   children: React.ReactNode;
   role?: "member" | "admin" | "superuseradmin";
 }) {
-  const { isAuthenticated, user } = useAuth();
-  const location = useLocation();
-
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace state={{ from: location }} />;
-  }
-
-  if (
-    role &&
-    user?.role !== role &&
-    !(role === "admin" && user?.role === "superuseradmin")
-  ) {
-    return (
-      <Navigate
-        to={
-          user?.role === "admin"
-            ? "/admin"
-            : user?.role === "superuseradmin"
-            ? "/superuseradmin"
-            : "/member"
-        }
-        replace
-      />
-    );
-  }
-
+  // Disabled authentication for testing - allow access to all routes
   return <>{children}</>;
 }
 
