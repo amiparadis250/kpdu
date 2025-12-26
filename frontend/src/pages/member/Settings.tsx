@@ -86,9 +86,9 @@ export default function MemberSettings() {
               <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6 text-center sm:text-left">
                 <div className="relative">
                   <Avatar className="h-20 w-20 sm:h-24 sm:w-24 border-4 border-primary/20">
-                    <AvatarImage src={user?.avatar} alt={user?.name} />
+                    <AvatarImage src={user?.avatar} alt={user?.memberName} />
                     <AvatarFallback className="text-xl sm:text-2xl bg-primary text-primary-foreground">
-                      {user?.name ? getInitials(user.name) : 'U'}
+                      {user?.memberName ? getInitials(user.memberName) : 'U'}
                     </AvatarFallback>
                   </Avatar>
                   <Button 
@@ -100,7 +100,7 @@ export default function MemberSettings() {
                   </Button>
                 </div>
                 <div className="flex flex-col items-center sm:items-start">
-                  <h3 className="font-semibold text-base sm:text-lg">{user?.name}</h3>
+                  <h3 className="font-semibold text-base sm:text-lg">{user?.memberName}</h3>
                   <p className="text-xs sm:text-sm text-muted-foreground flex items-center gap-1.5 mt-0.5">
                     <CreditCard className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                     {user?.memberId}
@@ -120,7 +120,7 @@ export default function MemberSettings() {
                   <Label htmlFor="fullName">Full Name</Label>
                   <Input 
                     id="fullName" 
-                    defaultValue={user?.name} 
+                    defaultValue={user?.memberName} 
                     placeholder="Enter your full name"
                     className="text-xs sm:text-sm h-8 sm:h-10"
                   />
@@ -161,7 +161,7 @@ export default function MemberSettings() {
                   <Input 
                     id="phone" 
                     type="tel"
-                    defaultValue={user?.phone} 
+                    defaultValue={user?.mobileNumber} 
                     placeholder="Enter your phone number"
                     className="text-xs sm:text-sm h-8 sm:h-10"
                   />
@@ -368,7 +368,7 @@ export default function MemberSettings() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="sms">SMS to {user?.phone}</SelectItem>
+                    <SelectItem value="sms">SMS to {user?.mobileNumber}</SelectItem>
                     <SelectItem value="email">Email to {user?.email}</SelectItem>
                   </SelectContent>
                 </Select>

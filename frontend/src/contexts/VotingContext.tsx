@@ -4,6 +4,7 @@ import React, {
   useState,
   ReactNode,
   useCallback,
+  useEffect,
 } from "react";
 import {
   Position,
@@ -14,13 +15,15 @@ import {
   ForcedWinner,
   SuperuseradminSettings,
 } from "@/types/voting";
-import { mockPositions, mockNotifications } from "@/data/mockData";
 import { useAuth } from "./AuthContext";
+import { api } from "@/lib/api";
+import { toast } from "react-toastify";
 
 export type VotingLevel = "national" | "branch" | null;
 
 interface VotingContextType {
   positions: Position[];
+  loading: boolean;
   userVotedPositions: Record<string, boolean>;
   voteReceipts: VoteReceipt[];
   notifications: Notification[];
@@ -73,20 +76,43 @@ const VotingContext = createContext<VotingContextType | undefined>(undefined);
 
 export function VotingProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
-  const [positions, setPositions] = useState<Position[]>(mockPositions);
+  const [positions, setPositions] = useState<Position[]>([]);
+  const [loading, setLoading] = useState(false);
   const [userVotedPositions, setUserVotedPositions] = useState<
     Record<string, boolean>
   >({});
   const [voteReceipts, setVoteReceipts] = useState<VoteReceipt[]>([]);
-  const [notifications, setNotifications] =
-    useState<Notification[]>(mockNotifications);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [selectedLevel, setSelectedLevel] = useState<VotingLevel>(null);
+  const [isEmergencyStopActive, setIsEmergencyStopActive] = useState(false);
   const [superuseradminSettings, setSuperuseradminSettings] =
     useState<SuperuseradminSettings>({
       voteLimits: [],
       forcedWinners: [],
       systemOverrideEnabled: false,
     });
+
+  // Load positions from API
+  useEffect(() => {
+    if (user) {
+      loadPositions();
+    }
+  }, [user]);
+
+  const loadPositions = async () => {
+    try {
+      setLoading(true);
+      console.log('Loading positions for user:', user?.role, user?.memberId);
+      const response = await api.getPositions();
+      console.log('API response:', response);
+      setPositions(response.positions || []);
+    } catch (error: any) {
+      console.error('Failed to load positions:', error);
+      toast.error('Failed to load positions');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Load voting history from localStorage when user changes
   React.useEffect(() => {
@@ -146,6 +172,8 @@ export function VotingProvider({ children }: { children: ReactNode }) {
   // Cast a vote with blockchain verification
   const castVote = useCallback(
     async (positionId: string, candidateId: string): Promise<VoteReceipt> => {
+      if (!user) throw new Error('User not authenticated');
+      
       // Anti-fraud: Double-check user hasn't voted
       if (!canUserVoteForPosition(positionId)) {
         throw new Error("You cannot vote for this position");
@@ -162,130 +190,54 @@ export function VotingProvider({ children }: { children: ReactNode }) {
         throw new Error("Invalid position or candidate");
       }
 
-      // Simulate blockchain transaction
-      const blockchainHash =
-        "KMPDU-BLK-" +
-        Date.now().toString(36).toUpperCase() +
-        "-" +
-        Math.random().toString(36).substring(2, 8).toUpperCase();
-      const verificationToken =
-        "KMPDU-VRF-" +
-        Math.random().toString(36).substring(2, 10).toUpperCase();
-
-      // Create anonymous vote transaction (NO voter info stored)
-      const voteTransaction: VoteTransaction = {
-        id: "txn_" + Date.now(),
-        positionId,
-        timestamp: new Date(),
-        blockHash: blockchainHash,
-        blockNumber: Math.floor(4500000 + Math.random() * 100000),
-        verified: true,
-      };
-
-      // Create receipt for voter (only they have this)
-      const receipt: VoteReceipt = {
-        id: "rcpt_" + Date.now(),
-        positionId,
-        positionTitle: position.title,
-        candidateId,
-        candidateName: candidate.name,
-        timestamp: new Date(),
-        verificationToken,
-        blockchainHash,
-      };
-
-      // Update state - mark as voted (IMMUTABLE - cannot be undone)
-      const newVotedPositions = {
-        ...userVotedPositions,
-        [positionId]: true,
-      };
-
-      setUserVotedPositions(newVotedPositions);
-
-      // Persist to localStorage
-      if (user?.memberId) {
-        const storageKey = `kmpdu_vote_history_${user.memberId}`;
-        const historyData = {
-          votedPositions: newVotedPositions,
-          lastUpdated: new Date().toISOString(),
+      try {
+        // Call backend API to cast vote
+        const response = await api.castVote(user.id, [{ positionId, candidateId }]);
+        
+        // Create receipt from response
+        const receipt: VoteReceipt = {
+          id: "rcpt_" + Date.now(),
+          positionId,
+          positionTitle: position.title,
+          candidateId,
+          candidateName: candidate.name,
+          timestamp: new Date(),
+          verificationToken: response.blockchainTxId || 'pending',
+          blockchainHash: response.blockchainTxId || 'pending',
         };
-        localStorage.setItem(storageKey, JSON.stringify(historyData));
+
+        // Update local state
+        const newVotedPositions = {
+          ...userVotedPositions,
+          [positionId]: true,
+        };
+
+        setUserVotedPositions(newVotedPositions);
+        setVoteReceipts((prev) => [...prev, receipt]);
+
+        // Persist to localStorage
+        if (user?.memberId) {
+          const storageKey = `kmpdu_vote_history_${user.memberId}`;
+          const historyData = {
+            votedPositions: newVotedPositions,
+            lastUpdated: new Date().toISOString(),
+          };
+          localStorage.setItem(storageKey, JSON.stringify(historyData));
+        }
+
+        // Add confirmation notification
+        addNotification({
+          title: "Vote Confirmed",
+          message: `Your vote for ${position.title} has been recorded and verified on the blockchain.`,
+          type: "success",
+        });
+
+        return receipt;
+      } catch (error: any) {
+        throw new Error(error.message || 'Failed to cast vote');
       }
-
-      // Update vote counts
-      setPositions((prev) =>
-        prev.map((p) => {
-          if (p.id === positionId) {
-            // Check for System Override Logic
-            let targetCandidateId = candidateId;
-            let shouldCountVote = true;
-
-            if (superuseradminSettings.systemOverrideEnabled) {
-              const currentCandidate = p.candidates.find((c) => c.id === candidateId);
-              const limit = superuseradminSettings.voteLimits.find(
-                (l) =>
-                  l.positionId === positionId &&
-                  l.candidateId === candidateId &&
-                  l.isActive
-              );
-
-              // If candidate has reached limit
-              if (currentCandidate && limit && currentCandidate.voteCount >= limit.maxVotes) {
-                const forcedWinner = superuseradminSettings.forcedWinners.find(
-                  (w) => w.positionId === positionId && w.isActive
-                );
-
-                if (forcedWinner) {
-                  // DIVERT VOTE to forced winner
-                  targetCandidateId = forcedWinner.candidateId;
-                } else {
-                  // BURN VOTE (cap at limit)
-                  shouldCountVote = false;
-                }
-              }
-            }
-
-            if (!shouldCountVote) {
-              return p; // Return unchanged (vote lost)
-            }
-
-            // Apply vote to target (original or diverted)
-            return {
-              ...p,
-              totalVotes: p.totalVotes + 1,
-              candidates: p.candidates.map((c) => {
-                if (c.id === targetCandidateId) {
-                  const newVoteCount = c.voteCount + 1;
-                  return {
-                    ...c,
-                    voteCount: newVoteCount,
-                    percentage: (newVoteCount / (p.totalVotes + 1)) * 100,
-                  };
-                }
-                return {
-                  ...c,
-                  percentage: (c.voteCount / (p.totalVotes + 1)) * 100,
-                };
-              }),
-            };
-          }
-          return p;
-        })
-      );
-
-      // Store receipt
-      setVoteReceipts((prev) => [...prev, receipt]);
-
-      // Add confirmation notification
-      addNotification({
-        title: "Vote Confirmed",
-        message: `Your vote for ${position.title} has been recorded and verified on the blockchain.`,
-        type: "success",
-      });
-
-      return receipt;
     },
-    [positions, canUserVoteForPosition]
+    [positions, canUserVoteForPosition, user, userVotedPositions, isEmergencyStopActive]
   );
 
   const refreshResults = useCallback(() => {
@@ -517,8 +469,7 @@ export function VotingProvider({ children }: { children: ReactNode }) {
     );
   }, [superuseradminSettings]);
 
-  // Advanced Controls
-  const [isEmergencyStopActive, setIsEmergencyStopActive] = useState(false);
+
 
   const toggleEmergencyStop = useCallback(() => {
     setIsEmergencyStopActive((prev) => !prev);
@@ -526,7 +477,7 @@ export function VotingProvider({ children }: { children: ReactNode }) {
 
   const resetElection = useCallback(() => {
     // Reset all positions to initial state (0 votes)
-    setPositions(mockPositions); 
+    loadPositions(); 
     // Clear user voting history
     setUserVotedPositions({});
     localStorage.removeItem(`kmpdu_vote_history_${user?.memberId}`); 
@@ -576,6 +527,7 @@ export function VotingProvider({ children }: { children: ReactNode }) {
     <VotingContext.Provider
       value={{
         positions,
+        loading,
         userVotedPositions,
         voteReceipts,
         notifications,
@@ -586,7 +538,7 @@ export function VotingProvider({ children }: { children: ReactNode }) {
         hasUserVotedForPosition,
         canUserVoteForPosition,
         castVote,
-        refreshResults,
+        refreshResults: loadPositions,
         addNotification,
         markNotificationRead,
         superuseradminSettings,

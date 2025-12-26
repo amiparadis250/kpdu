@@ -11,7 +11,8 @@ class BranchController {
             select: {
               id: true,
               memberName: true,
-              isActive: true
+              isActive: true,
+              hasVoted: true
             }
           },
           elections: true
@@ -19,7 +20,24 @@ class BranchController {
         orderBy: { name: 'asc' }
       });
 
-      res.json({ branches });
+      // Calculate turnout percentage for each branch
+      const branchesWithStats = branches.map(branch => {
+        const totalMembers = branch.users.filter(user => user.isActive).length;
+        const votedCount = branch.users.filter(user => user.isActive && user.hasVoted).length;
+        const turnoutPercentage = totalMembers > 0 ? Math.round((votedCount / totalMembers) * 100) : 0;
+
+        return {
+          id: branch.id,
+          name: branch.name,
+          code: branch.code,
+          totalMembers,
+          votedCount,
+          turnoutPercentage,
+          isActive: branch.isActive
+        };
+      });
+
+      res.json({ branches: branchesWithStats });
     } catch (error) {
       console.error('Get branches error:', error);
       res.status(500).json({ message: 'Internal server error' });

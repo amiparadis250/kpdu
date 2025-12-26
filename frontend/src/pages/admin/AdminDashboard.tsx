@@ -1,11 +1,12 @@
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { StatCard } from '@/components/shared/StatCard';
 import { NotificationItem } from '@/components/shared/NotificationItem';
-import { mockElectionStats, mockBranches, mockPositions, mockAdminNotifications } from '@/data/mockData';
+import { useDashboardStats, useBranches, usePositions } from '@/hooks/useApi';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Users,
   Vote,
@@ -29,8 +30,12 @@ import { useEffect } from 'react';
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { selectedLevel, setSelectedLevel, positions: allPositions } = useVoting();
-  const stats = mockElectionStats;
+  const { selectedLevel, setSelectedLevel } = useVoting();
+  
+  // API calls
+  const { data: stats, loading: statsLoading } = useDashboardStats();
+  const { data: branches, loading: branchesLoading } = useBranches();
+  const { data: positions, loading: positionsLoading } = usePositions();
 
   // Default to national level if not set
   useEffect(() => {
@@ -41,13 +46,31 @@ export default function AdminDashboard() {
 
   // Filter positions based on selected level
   const activeLevel = selectedLevel || 'national';
-  const positions = allPositions.filter(p => {
+  const filteredPositions = positions?.positions && Array.isArray(positions.positions) ? positions.positions.filter(p => {
     if (activeLevel === 'national') {
       return p.type === 'national';
     } else {
       return p.type === 'branch' && p.branch === user?.branch;
     }
-  });
+  }) : [];
+
+  if (statsLoading) {
+    return (
+      <DashboardLayout title="Admin Dashboard">
+        <div className="space-y-6">
+          <div className="grid gap-4 md:grid-cols-4">
+            {[...Array(4)].map((_, i) => (
+              <Card key={i}>
+                <CardContent className="p-4">
+                  <Skeleton className="h-20 w-full" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout title="Admin Dashboard">
@@ -85,21 +108,21 @@ export default function AdminDashboard() {
       <div className="grid gap-2 sm:gap-4 md:grid-cols-2 lg:grid-cols-4 mb-2 sm:mb-6">
         <StatCard
           title="Registered Voters"
-          value={stats.totalVoters.toLocaleString()}
+          value={stats?.stats?.totalUsers?.toLocaleString() || '0'}
           icon={Users}
           variant="primary"
           trend={{ value: 2.3, label: 'new today', positive: true }}
         />
         <StatCard
           title="Votes Cast"
-          value={stats.totalVotesCast.toLocaleString()}
+          value={stats?.stats?.totalVotes?.toLocaleString() || '0'}
           icon={Vote}
           variant="accent"
-          subtitle={`${stats.turnoutPercentage}% turnout`}
+          subtitle={`${stats?.stats?.votingPercentage || 0}% turnout`}
         />
         <StatCard
           title="Uncast Votes"
-          value={(stats.totalVoters - stats.totalVotesCast).toLocaleString()}
+          value={((stats?.stats?.totalUsers || 0) - (stats?.stats?.totalVotes || 0)).toLocaleString()}
           icon={AlertTriangle}
           variant="warning"
           subtitle="Haven't voted yet"
@@ -131,29 +154,41 @@ export default function AdminDashboard() {
                 </Button>
               </CardHeader>
               <CardContent className="p-3 sm:p-6 pt-2 sm:pt-4">
-                <div className="space-y-2 sm:space-y-4">
-                  {mockBranches.slice(0, 5).map((branch, index) => (
-                    <div key={branch.id} className="flex flex-col xs:flex-row xs:items-center gap-1 xs:gap-4 stagger-enter" style={{ animationDelay: `${index * 50}ms` }}>
-                      <div className="w-full xs:w-32 truncate text-xs sm:text-sm font-medium">{branch.name.replace(' Branch', '')}</div>
-                      <div className="flex-1 flex items-center gap-3">
-                        <div className="flex-1">
-                          <Progress 
-                            value={branch.turnoutPercentage} 
-                            className="h-1.5 sm:h-2"
-                            indicatorClassName={cn(
-                              branch.turnoutPercentage >= 75 ? 'bg-success' :
-                              branch.turnoutPercentage >= 50 ? 'bg-accent' :
-                              'bg-warning'
-                            )}
-                          />
-                        </div>
-                        <div className="w-10 sm:w-20 text-right shrink-0">
-                          <span className="text-[10px] sm:text-sm font-semibold">{branch.turnoutPercentage}%</span>
+                {branchesLoading ? (
+                  <div className="space-y-4">
+                    {[...Array(5)].map((_, i) => (
+                      <Skeleton key={i} className="h-8 w-full" />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="space-y-2 sm:space-y-4">
+                    {branches?.branches && Array.isArray(branches.branches) ? branches.branches.slice(0, 5).map((branch, index) => (
+                      <div key={branch.id} className="flex flex-col xs:flex-row xs:items-center gap-1 xs:gap-4 stagger-enter" style={{ animationDelay: `${index * 50}ms` }}>
+                        <div className="w-full xs:w-32 truncate text-xs sm:text-sm font-medium">{branch.name.replace(' Branch', '')}</div>
+                        <div className="flex-1 flex items-center gap-3">
+                          <div className="flex-1">
+                            <Progress 
+                              value={branch.turnoutPercentage} 
+                              className="h-1.5 sm:h-2"
+                              indicatorClassName={cn(
+                                branch.turnoutPercentage >= 75 ? 'bg-success' :
+                                branch.turnoutPercentage >= 50 ? 'bg-accent' :
+                                'bg-warning'
+                              )}
+                            />
+                          </div>
+                          <div className="w-10 sm:w-20 text-right shrink-0">
+                            <span className="text-[10px] sm:text-sm font-semibold">{branch.turnoutPercentage}%</span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    )) : (
+                      <div className="text-center py-4 text-muted-foreground text-sm">
+                        No branch data available
+                      </div>
+                    )}
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
@@ -204,17 +239,23 @@ export default function AdminDashboard() {
               </Button>
             </CardHeader>
             <CardContent className="p-3 sm:p-6 pt-2 sm:pt-4">
-              {positions.length === 0 ? (
+              {positionsLoading ? (
+                <div className="grid gap-4 md:grid-cols-2">
+                  {[...Array(4)].map((_, i) => (
+                    <Skeleton key={i} className="h-32 w-full" />
+                  ))}
+                </div>
+              ) : filteredPositions.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   No {activeLevel} positions found
                 </div>
               ) : (
                 <div className="grid gap-4 md:grid-cols-2">
-                  {positions.map((position) => {
+                  {filteredPositions.map((position) => {
                     const turnout = (position.totalVotes / position.eligibleVoters) * 100;
-                    const leader = position.candidates.reduce((a, b) => 
-                      a.percentage > b.percentage ? a : b
-                    );
+                    const leader = position.candidates && position.candidates.length > 0 
+                      ? position.candidates.reduce((a, b) => a.percentage > b.percentage ? a : b)
+                      : null;
                     return (
                       <div
                         key={position.id}
@@ -237,8 +278,14 @@ export default function AdminDashboard() {
                           <div className="flex items-center justify-between text-xs">
                             <span className="text-muted-foreground">Leading</span>
                             <div className="flex items-center gap-1 min-w-0 max-w-[60%] justify-end">
-                                <span className="font-medium truncate">{leader.name.split(' ').slice(-1)[0]}</span>
-                                <span className="text-muted-foreground shrink-0">({leader.percentage.toFixed(0)}%)</span>
+                              {leader ? (
+                                <>
+                                  <span className="font-medium truncate">{leader.name.split(' ').slice(-1)[0]}</span>
+                                  <span className="text-muted-foreground shrink-0">({leader.percentage.toFixed(0)}%)</span>
+                                </>
+                              ) : (
+                                <span className="text-muted-foreground">No candidates</span>
+                              )}
                             </div>
                           </div>
                           <div className="flex items-center justify-between text-xs">
@@ -293,10 +340,19 @@ export default function AdminDashboard() {
                 <span className="xs:hidden">Alerts</span>
                 <span className="hidden xs:inline">System Alerts</span>
               </CardTitle>
-              <Badge variant="secondary">{mockAdminNotifications.filter(n => !n.read).length} new</Badge>
+              <Badge variant="secondary">{[
+                { id: '1', title: 'High Turnout Alert', message: 'Nairobi Branch exceeded 80% turnout', type: 'success' as const, timestamp: new Date(), read: false },
+                { id: '2', title: 'System Health', message: 'All voting nodes operational', type: 'info' as const, timestamp: new Date(), read: false },
+                { id: '3', title: 'Candidate Upload', message: 'New candidate added to position', type: 'info' as const, timestamp: new Date(), read: true },
+              ].filter(n => !n.read).length} new</Badge>
             </CardHeader>
             <CardContent className="p-2 space-y-1">
-              {mockAdminNotifications.slice(0, 4).map((notification) => (
+              {/* Mock notifications for now - will be replaced with real API */}
+              {[
+                { id: '1', title: 'High Turnout Alert', message: 'Nairobi Branch exceeded 80% turnout', type: 'success' as const, timestamp: new Date(), read: false },
+                { id: '2', title: 'System Health', message: 'All voting nodes operational', type: 'info' as const, timestamp: new Date(), read: false },
+                { id: '3', title: 'Candidate Upload', message: 'New candidate added to position', type: 'info' as const, timestamp: new Date(), read: true },
+              ].slice(0, 4).map((notification) => (
                 <NotificationItem key={notification.id} notification={notification} />
               ))}
             </CardContent>
