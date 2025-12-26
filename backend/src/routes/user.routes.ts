@@ -32,8 +32,6 @@ const router = Router();
  *         description: Insufficient permissions
  */
 router.post('/import', 
-  authenticateToken,
-  requireRole(['ADMIN', 'SUPERUSERADMIN']),
   upload.single('file'), 
   userController.importVoters
 );

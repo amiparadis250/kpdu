@@ -14,6 +14,7 @@ import voteRoutes from './routes/vote.routes';
 import notificationRoutes from './routes/notification.routes';
 import dashboardRoutes from './routes/dashboard.routes';
 import auditRoutes from './routes/audit.routes';
+import votingRoutes from './routes/voting.js';
 
 dotenv.config();
 
@@ -60,6 +61,7 @@ app.use('/api/votes', voteRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/audit', auditRoutes);
+app.use('/api/blockchain', votingRoutes);
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
