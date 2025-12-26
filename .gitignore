@@ -126,3 +126,10 @@ backend/node_modules/
 frontend/dist/
 frontend/.env
 frontend/node_modules/
+
+# Blockchain specific
+blockchain/.dfx/
+blockchain/.env
+blockchain/node_modules/
+blockchain/**/.vessel/
+blockchain/**/canister_ids.json
