@@ -1,0 +1,178 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String    @id @default(cuid())
+  memberId     String    @unique
+  memberName   String
+  nationalId   String    @unique
+  mobileNumber String
+  branch       Branch
+  email        String?   @unique
+  role         Role      @default(MEMBER)
+  branchId     String?
+  isActive     Boolean   @default(true)
+  hasVoted     Boolean   @default(false)
+  lastLogin    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  // Relations
+  branchRef  BranchModel? @relation(fields: [branchId], references: [id])
+  candidacy  Candidate?
+  otpSessions OTPSession[]
+
+  @@map("users")
+}
+
+model BranchModel {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  code        String    @unique
+  description String?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  users      User[]
+  elections  Election[]
+  voteCounts VoteCount[]
+
+  @@map("branches")
+}
+
+model Election {
+  id          String        @id @default(cuid())
+  title       String
+  description String?
+  startDate   DateTime
+  endDate     DateTime
+  status      ElectionStatus @default(DRAFT)
+  type        ElectionType
+  branchId    String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  // Relations
+  branch     BranchModel? @relation(fields: [branchId], references: [id])
+  positions  Position[]
+  voteCounts VoteCount[]
+
+  @@map("elections")
+}
+
+model Position {
+  id            String    @id @default(cuid())
+  title         String
+  description   String?
+  electionId    String
+  maxCandidates Int       @default(1)
+  order         Int       @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  election   Election    @relation(fields: [electionId], references: [id], onDelete: Cascade)
+  candidates Candidate[]
+  voteCounts VoteCount[]
+
+  @@map("positions")
+}
+
+model Candidate {
+  id         String    @id @default(cuid())
+  firstName  String
+  lastName   String
+  bio        String?
+  photo      String?
+  positionId String
+  userId     String?   @unique
+  isActive   Boolean   @default(true)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  // Relations
+  position   Position    @relation(fields: [positionId], references: [id], onDelete: Cascade)
+  user       User?       @relation(fields: [userId], references: [id])
+  voteCounts VoteCount[]
+
+  @@map("candidates")
+}
+
+model OTPSession {
+  id        String     @id @default(cuid())
+  email     String?
+  mobile    String?
+  otp       String
+  purpose   OTPPurpose
+  expiresAt DateTime
+  isUsed    Boolean    @default(false)
+  attempts  Int        @default(0)
+  userId    String?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  // Relations
+  user User? @relation(fields: [userId], references: [id])
+
+  @@map("otp_sessions")
+}
+
+model VoteCount {
+  id          String    @id @default(cuid())
+  candidateId String
+  positionId  String
+  electionId  String
+  branchId    String?
+  voteCount   Int       @default(0)
+  lastUpdated DateTime  @default(now())
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  candidate Candidate    @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  position  Position     @relation(fields: [positionId], references: [id], onDelete: Cascade)
+  election  Election     @relation(fields: [electionId], references: [id], onDelete: Cascade)
+  branch    BranchModel? @relation(fields: [branchId], references: [id])
+
+  @@unique([candidateId, positionId, electionId, branchId])
+  @@map("vote_counts")
+}
+
+enum Role {
+  MEMBER
+  ADMIN
+  SUPERUSERADMIN
+}
+
+enum Branch {
+  WESTERN_MEMBER    @map("Western(Member)")
+  NYANZA_MEMBER     @map("Nyanza(Member)")
+  WESTERN           @map("WESTERN")
+  UPPER_EASTERN     @map("UPPER EASTERN")
+}
+
+enum ElectionStatus {
+  DRAFT
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum ElectionType {
+  NATIONAL
+  BRANCH
+}
+
+enum OTPPurpose {
+  LOGIN
+  VOTE
+  PASSWORD_RESET
+}
