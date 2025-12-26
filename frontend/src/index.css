@@ -1,0 +1,325 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* KMPDU Brand Colors */
+    --background: 210 20% 98%;
+    --foreground: 220 30% 12%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 220 30% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 30% 12%;
+
+    /* Primary - Deep Navy Blue (Trust & Security) */
+    --primary: 220 65% 25%;
+    --primary-foreground: 210 40% 98%;
+
+    /* Secondary - Slate for UI elements */
+    --secondary: 215 20% 94%;
+    --secondary-foreground: 220 30% 20%;
+
+    --muted: 215 20% 94%;
+    --muted-foreground: 220 15% 45%;
+
+    /* Accent - Teal (Medical/Healthcare) */
+    --accent: 174 60% 40%;
+    --accent-foreground: 0 0% 100%;
+
+    /* Status Colors */
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 152 60% 40%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 10%;
+
+    --info: 200 80% 50%;
+    --info-foreground: 0 0% 100%;
+
+    --border: 220 15% 88%;
+    --input: 220 15% 88%;
+    --ring: 220 65% 25%;
+
+    --radius: 0.75rem;
+
+    /* Sidebar */
+    --sidebar-background: 220 30% 12%;
+    --sidebar-foreground: 215 20% 85%;
+    --sidebar-primary: 174 60% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 30% 18%;
+    --sidebar-accent-foreground: 215 20% 95%;
+    --sidebar-border: 220 25% 20%;
+    --sidebar-ring: 174 60% 50%;
+
+    /* Custom gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(220 65% 25%) 0%, hsl(220 65% 35%) 100%);
+    --gradient-accent: linear-gradient(135deg, hsl(174 60% 40%) 0%, hsl(174 60% 50%) 100%);
+    --gradient-hero: linear-gradient(135deg, hsl(220 65% 20%) 0%, hsl(220 50% 30%) 50%, hsl(174 50% 35%) 100%);
+    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(215 20% 97%) 100%);
+
+    /* Shadows */
+    --shadow-sm: 0 1px 2px 0 hsl(220 30% 12% / 0.05);
+    --shadow-md: 0 4px 6px -1px hsl(220 30% 12% / 0.1), 0 2px 4px -2px hsl(220 30% 12% / 0.1);
+    --shadow-lg: 0 10px 15px -3px hsl(220 30% 12% / 0.1), 0 4px 6px -4px hsl(220 30% 12% / 0.1);
+    --shadow-glow: 0 0 30px hsl(174 60% 40% / 0.3);
+  }
+
+  .dark {
+    --background: 220 30% 8%;
+    --foreground: 210 40% 98%;
+
+    --card: 220 30% 12%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 220 30% 12%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 174 60% 50%;
+    --primary-foreground: 220 30% 10%;
+
+    --secondary: 220 25% 18%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 220 25% 18%;
+    --muted-foreground: 215 20% 65%;
+
+    --accent: 174 60% 45%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 25% 20%;
+    --input: 220 25% 20%;
+    --ring: 174 60% 50%;
+
+    --sidebar-background: 220 30% 6%;
+    --sidebar-foreground: 215 20% 85%;
+    --sidebar-primary: 174 60% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 30% 12%;
+    --sidebar-accent-foreground: 215 20% 95%;
+    --sidebar-border: 220 25% 15%;
+    --sidebar-ring: 174 60% 50%;
+  }
+
+  /* Force light mode variables */
+  .force-light {
+    --background: 210 20% 98%;
+    --foreground: 220 30% 12%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 220 30% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 30% 12%;
+
+    --primary: 220 65% 25%;
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 215 20% 94%;
+    --secondary-foreground: 220 30% 20%;
+
+    --muted: 215 20% 94%;
+    --muted-foreground: 220 15% 45%;
+
+    --accent: 174 60% 40%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 152 60% 40%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 10%;
+
+    --info: 200 80% 50%;
+    --info-foreground: 0 0% 100%;
+
+    --border: 220 15% 88%;
+    --input: 220 15% 88%;
+    --ring: 220 65% 25%;
+
+    --radius: 0.75rem;
+
+    --sidebar-background: 220 30% 12%;
+    --sidebar-foreground: 215 20% 85%;
+    --sidebar-primary: 174 60% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 30% 18%;
+    --sidebar-accent-foreground: 215 20% 95%;
+    --sidebar-border: 220 25% 20%;
+    --sidebar-ring: 174 60% 50%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased overflow-x-hidden;
+    font-family: 'DM Sans', sans-serif;
+  }
+}
+
+@layer utilities {
+  .gradient-primary {
+    background: var(--gradient-primary);
+  }
+
+  .gradient-accent {
+    background: var(--gradient-accent);
+  }
+
+  .gradient-hero {
+    background: var(--gradient-hero);
+  }
+
+  .gradient-card {
+    background: var(--gradient-card);
+  }
+
+  .shadow-glow {
+    box-shadow: var(--shadow-glow);
+  }
+
+  .text-gradient {
+    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Voting card animations */
+  .vote-card {
+    @apply transition-all duration-300 ease-out;
+  }
+
+  .vote-card:hover {
+    @apply -translate-y-1;
+    box-shadow: var(--shadow-lg);
+  }
+
+  /* Progress bar animation */
+  .progress-animate {
+    animation: progress-fill 1s ease-out forwards;
+  }
+
+  @keyframes progress-fill {
+    from {
+      width: 0%;
+    }
+  }
+
+  /* Pulse for live indicators */
+  .pulse-live {
+    animation: pulse-live 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse-live {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.5;
+    }
+  }
+
+  /* Stagger animation for cards */
+  .stagger-enter {
+    animation: stagger-enter 0.5s ease-out forwards;
+    opacity: 0;
+  }
+
+  @keyframes stagger-enter {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Success checkmark animation */
+  .check-animate {
+    animation: check-scale 0.4s ease-out forwards;
+  }
+
+  @keyframes check-scale {
+    0% {
+      transform: scale(0);
+    }
+    50% {
+      transform: scale(1.2);
+    }
+    100% {
+      transform: scale(1);
+    }
+  }
+
+  /* Number counter animation */
+  .number-roll {
+    animation: number-roll 0.6s ease-out forwards;
+  }
+
+  @keyframes number-roll {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Hide scrollbar */
+  .scrollbar-hide {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;  /* Chrome, Safari and Opera */
+  }
+
+  /* Toast Responsiveness for 200px */
+  @media (max-width: 320px) {
+    .Toastify__toast-container {
+      width: 90vw !important;
+      left: 5vw !important;
+      margin: 0 !important;
+      padding: 0 !important;
+    }
+    .Toastify__toast {
+      min-height: 48px !important;
+      padding: 8px !important;
+      margin-bottom: 8px !important;
+      border-radius: 8px !important;
+    }
+    .Toastify__toast-body {
+      padding: 0 !important;
+      margin: 0 !important;
+      font-size: 11px !important;
+    }
+    .Toastify__toast-icon {
+      width: 16px !important;
+      margin-right: 6px !important;
+    }
+  }
+}
