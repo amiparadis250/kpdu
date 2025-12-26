@@ -1,0 +1,7 @@
+service : {
+  addVote: (positionId: text, candidateId: text) -> () oneway;
+  getResults: (positionId: text) -> (vec record {
+                                           text;
+                                           nat;
+                                         }) query;
+}

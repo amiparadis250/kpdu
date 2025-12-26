@@ -1,0 +1,12 @@
+type Vote = 
+ record {
+   candidateId: text;
+   level: text;
+   positionId: text;
+   timestamp: int;
+ };
+service : {
+  castVote: (hashedVoter: text, positionId: text, candidateId: text, level:
+   text) -> (bool);
+  getVotes: (positionId: text) -> (vec Vote) query;
+}

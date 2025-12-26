@@ -1,0 +1,28 @@
+{
+  "version": 1,
+
+  "canisters": {
+    "identity_canister": {
+      "type": "motoko",
+      "main": "src/identity/main.mo"
+    },
+
+    "voting_canister": {
+      "type": "motoko",
+      "main": "src/voting/main.mo"
+    },
+
+    "results_canister": {
+      "type": "motoko",
+      "main": "src/results/main.mo"
+    }
+  },
+
+  "defaults": {
+    "build": {
+      "args": "",
+      "packtool": ""
+    }
+  },
+  "output_env_file": ".env"
+}

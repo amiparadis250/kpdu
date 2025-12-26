@@ -1,0 +1,14 @@
+{
+  "__Candid_UI": {
+    "local": "umunu-kh777-77774-qaaca-cai"
+  },
+  "identity_canister": {
+    "local": "uxrrr-q7777-77774-qaaaq-cai"
+  },
+  "results_canister": {
+    "local": "u6s2n-gx777-77774-qaaba-cai"
+  },
+  "voting_canister": {
+    "local": "uzt4z-lp777-77774-qaabq-cai"
+  }
+}

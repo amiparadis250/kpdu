@@ -1,0 +1,12 @@
+type Voter = 
+ record {
+   branchId: text;
+   hasVotedBranch: bool;
+   hasVotedNational: bool;
+   memberId: text;
+ };
+service : {
+  markVoted: (memberId: text, level: text) -> (bool);
+  registerVoter: (memberId: text, branchId: text) -> (bool);
+  verifyVoter: (memberId: text) -> (opt Voter) query;
+}
