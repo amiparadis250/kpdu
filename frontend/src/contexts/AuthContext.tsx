@@ -24,7 +24,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const token = localStorage.getItem('auth_token');
       if (token) {
         try {
-          const profile = await api.getProfile();
+          const profile = (await api.getProfile()) as { user: User };
           setUser(profile.user);
         } catch (error) {
           localStorage.removeItem('auth_token');
@@ -39,7 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (memberId: string, nationalId: string) => {
     try {
       setIsLoading(true);
-      const response = await api.login(memberId, nationalId);
+      const response: { token?: string; requiresOTP?: boolean; user?: User } = await api.login(memberId, nationalId);
       
       if (response.requiresOTP) {
         toast.info('OTP sent to your email. Please verify to continue.');
@@ -63,7 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const verifyOTP = async (email: string, otp: string) => {
     try {
       setIsLoading(true);
-      const response = await api.verifyOTP(email, otp);
+      const response: { token?: string; user?: User } = await api.verifyOTP(email, otp);
       
       if (response.token) {
         api.setToken(response.token);

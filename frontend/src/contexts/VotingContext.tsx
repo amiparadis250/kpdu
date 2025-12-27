@@ -103,7 +103,7 @@ export function VotingProvider({ children }: { children: ReactNode }) {
     try {
       setLoading(true);
       console.log('Loading positions for user:', user?.role, user?.memberId);
-      const response = await api.getPositions();
+      const response = await api.getPositions() as { positions: Position[] };
       console.log('API response:', response);
       setPositions(response.positions || []);
     } catch (error: any) {
@@ -192,7 +192,7 @@ export function VotingProvider({ children }: { children: ReactNode }) {
 
       try {
         // Call backend API to cast vote
-        const response = await api.castVote(user.id, [{ positionId, candidateId }]);
+        const response = await api.castVote(user.id, [{ positionId, candidateId }]) as { blockchainTxId: string };
         
         // Create receipt from response
         const receipt: VoteReceipt = {
