@@ -67,7 +67,7 @@ export function TopBar({ title }: TopBarProps) {
 
         {/* User Avatar */}
         <div className="flex h-7 w-7 sm:h-9 sm:w-9 items-center justify-center rounded-full bg-primary text-xs sm:text-sm font-semibold text-primary-foreground">
-          {user?.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+          {user?.memberName?.split(' ').map(n => n[0]).join('').slice(0, 2) || 'U'}
         </div>
       </div>
     </header>

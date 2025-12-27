@@ -1,7 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { mockBranches } from '@/data/mockData';
-import { Card, CardContent } from '@/components/ui/card';
+import { useUsers } from '@/hooks/useApi';
+import { api } from '@/lib/api';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { Loading } from '@/components/shared/Loading';
 import {
   Table,
   TableBody,
@@ -10,42 +16,100 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Progress } from '@/components/ui/progress';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Building, Users, TrendingUp, Search, Download, MapPin } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { Branch } from '@/types/voting';
-import { BranchDetailsDialog } from '@/components/admin/BranchDetailsDialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import { Plus, Upload, Search, Download, Users, UserCheck, AlertTriangle } from 'lucide-react';
+import { toast } from 'react-toastify';
 
-export default function AdminBranches() {
-  const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null);
-  const [showDetailsDialog, setShowDetailsDialog] = useState(false);
-
-  const branches = mockBranches;
-  const totalVoters = branches.reduce((sum, b) => sum + b.totalMembers, 0);
-  const totalVoted = branches.reduce((sum, b) => sum + b.votedCount, 0);
-  const avgTurnout = (totalVoted / totalVoters) * 100;
-
-  const handleViewDetails = (branch: Branch) => {
-    setSelectedBranch(branch);
-    setShowDetailsDialog(true);
+export default function AdminUsers() {
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState('');
+  const [showImportDialog, setShowImportDialog] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importing, setImporting] = useState(false);
+  
+  const { data: usersData, loading, error, refetch } = useUsers(page, 10, search);
+  
+  const handleImport = async () => {
+    if (!importFile) {
+      toast.error('Please select a file to import');
+      return;
+    }
+    
+    try {
+      setImporting(true);
+      const formData = new FormData();
+      formData.append('file', importFile);
+      
+      const result = await api.importUsers(formData);
+      toast.success(`Successfully imported ${result.imported} users`);
+      setShowImportDialog(false);
+      setImportFile(null);
+      refetch();
+    } catch (error: any) {
+      toast.error(error.message || 'Import failed');
+    } finally {
+      setImporting(false);
+    }
   };
+  
+  if (loading && !usersData) {
+    return (
+      <DashboardLayout title="User Management">
+        <Loading type="stats" />
+        <div className="mt-6">
+          <Loading type="table" count={10} />
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
-    <DashboardLayout title="Branch Management">
+    <DashboardLayout title="User Management">
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-4 mb-6">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                <Building className="h-5 w-5 text-primary" />
+                <Users className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Total Branches</p>
-                <p className="text-2xl font-bold">{branches.length}</p>
+                <p className="text-sm text-muted-foreground">Total Users</p>
+                <p className="text-2xl font-bold">{usersData?.total || 0}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success/10">
+                <UserCheck className="h-5 w-5 text-success" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Active Users</p>
+                <p className="text-2xl font-bold">{usersData?.active || 0}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-warning/10">
+                <AlertTriangle className="h-5 w-5 text-warning" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Pending</p>
+                <p className="text-2xl font-bold">{usersData?.pending || 0}</p>
               </div>
             </div>
           </CardContent>
@@ -57,34 +121,8 @@ export default function AdminBranches() {
                 <Users className="h-5 w-5 text-accent" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Total Members</p>
-                <p className="text-2xl font-bold">{totalVoters.toLocaleString()}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success/10">
-                <TrendingUp className="h-5 w-5 text-success" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Average Turnout</p>
-                <p className="text-2xl font-bold text-success">{avgTurnout.toFixed(1)}%</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-warning/10">
-                <Users className="h-5 w-5 text-warning" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Yet to Vote</p>
-                <p className="text-2xl font-bold">{(totalVoters - totalVoted).toLocaleString()}</p>
+                <p className="text-sm text-muted-foreground">Branches</p>
+                <p className="text-2xl font-bold">{usersData?.branches || 0}</p>
               </div>
             </div>
           </CardContent>

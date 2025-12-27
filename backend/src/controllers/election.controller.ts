@@ -37,7 +37,7 @@ class ElectionController {
           endDate: new Date(endDate),
           type,
           branchId,
-          status: 'DRAFT'
+          status: 'ACTIVE'
         }
       });
 
@@ -48,21 +48,89 @@ class ElectionController {
     }
   }
 
-  // Get positions for an election
+  // Get positions for an election or all positions
   async getPositions(req: Request, res: Response): Promise<void> {
     try {
       const { electionId } = req.params;
+      
+      let whereClause = {};
+      if (electionId) {
+        whereClause = { electionId };
+      }
 
       const positions = await prisma.position.findMany({
-        where: { electionId },
+        where: whereClause,
         include: {
-          candidates: true,
-          election: true
+          candidates: {
+            include: {
+              voteCounts: true
+            }
+          },
+          election: {
+            include: {
+              branch: true
+            }
+          }
         },
         orderBy: { order: 'asc' }
       });
 
-      res.json({ positions });
+      // Helper function to calculate eligible voters
+      const calculateEligibleVoters = async (election: any): Promise<number> => {
+        if (election.type === 'NATIONAL') {
+          return await prisma.user.count({
+            where: { isActive: true, role: 'MEMBER' }
+          });
+        } else if (election.type === 'BRANCH' && election.branchId) {
+          return await prisma.user.count({
+            where: { 
+              isActive: true, 
+              role: 'MEMBER',
+              branchId: election.branchId 
+            }
+          });
+        }
+        return 0;
+      };
+
+      // Transform positions to match frontend expectations
+      const transformedPositions = await Promise.all(positions.map(async (position) => {
+        const totalVotes = position.candidates.reduce((sum, candidate) => 
+          sum + candidate.voteCounts.reduce((voteSum, vc) => voteSum + vc.voteCount, 0), 0
+        );
+        
+        const candidatesWithStats = position.candidates.map(candidate => {
+          const voteCount = candidate.voteCounts.reduce((sum, vc) => sum + vc.voteCount, 0);
+          const percentage = totalVotes > 0 ? (voteCount / totalVotes) * 100 : 0;
+          
+          return {
+            id: candidate.id,
+            name: `${candidate.firstName} ${candidate.lastName}`,
+            firstName: candidate.firstName,
+            lastName: candidate.lastName,
+            bio: candidate.bio,
+            photo: candidate.photo,
+            voteCount,
+            percentage: Math.round(percentage * 100) / 100
+          };
+        });
+
+        return {
+          id: position.id,
+          title: position.title,
+          description: position.description,
+          type: position.election.type.toLowerCase(),
+          status: position.election.status.toLowerCase(),
+          branch: position.election.branch?.name || null,
+          candidates: candidatesWithStats,
+          totalVotes,
+          eligibleVoters: await calculateEligibleVoters(position.election),
+          startTime: position.election.startDate,
+          endTime: position.election.endDate
+        };
+      }));
+
+      res.json({ positions: transformedPositions });
     } catch (error) {
       console.error('Get positions error:', error);
       res.status(500).json({ message: 'Internal server error' });
@@ -91,21 +159,50 @@ class ElectionController {
     }
   }
 
-  // Get candidates for a position
+  // Get candidates for a position or all candidates
   async getCandidates(req: Request, res: Response): Promise<void> {
     try {
       const { positionId } = req.params;
+      
+      let whereClause = {};
+      if (positionId) {
+        whereClause = { positionId };
+      }
 
       const candidates = await prisma.candidate.findMany({
-        where: { positionId },
+        where: whereClause,
         include: {
-          position: true,
-          user: true
+          position: {
+            include: {
+              election: true
+            }
+          },
+          user: true,
+          voteCounts: true
         },
         orderBy: { createdAt: 'asc' }
       });
 
-      res.json({ candidates });
+      // Transform candidates to match frontend expectations
+      const transformedCandidates = candidates.map(candidate => {
+        const voteCount = candidate.voteCounts.reduce((sum, vc) => sum + vc.voteCount, 0);
+        
+        return {
+          id: candidate.id,
+          name: `${candidate.firstName} ${candidate.lastName}`,
+          firstName: candidate.firstName,
+          lastName: candidate.lastName,
+          bio: candidate.bio,
+          photo: candidate.photo,
+          position: candidate.position.title,
+          positionId: candidate.positionId,
+          election: candidate.position.election.title,
+          voteCount,
+          isActive: candidate.isActive
+        };
+      });
+
+      res.json({ candidates: transformedCandidates });
     } catch (error) {
       console.error('Get candidates error:', error);
       res.status(500).json({ message: 'Internal server error' });
@@ -115,7 +212,7 @@ class ElectionController {
   // Create new candidate
   async createCandidate(req: Request, res: Response): Promise<void> {
     try {
-      const { firstName, lastName, bio, positionId, userId } = req.body;
+      const { firstName, lastName, bio, positionId, userId, photo } = req.body;
 
       const candidate = await prisma.candidate.create({
         data: {
@@ -124,6 +221,7 @@ class ElectionController {
           bio,
           positionId,
           userId,
+          photo: photo || null,
           isActive: true
         }
       });

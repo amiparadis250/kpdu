@@ -113,6 +113,20 @@ router.post('/',
 // Positions
 /**
  * @swagger
+ * /api/elections/positions:
+ *   get:
+ *     summary: Get all positions (All authenticated users)
+ *     tags: [Elections]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.get('/positions', 
+  authenticateToken,
+  electionController.getPositions
+);
+
+/**
+ * @swagger
  * /api/elections/{electionId}/positions:
  *   get:
  *     summary: Get positions for election (All authenticated users)
@@ -146,6 +160,20 @@ router.post('/positions',
 );
 
 // Candidates
+/**
+ * @swagger
+ * /api/elections/candidates:
+ *   get:
+ *     summary: Get all candidates (All authenticated users)
+ *     tags: [Elections]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.get('/candidates', 
+  authenticateToken,
+  electionController.getCandidates
+);
+
 /**
  * @swagger
  * /api/elections/positions/{positionId}/candidates:
