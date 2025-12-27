@@ -1,9 +1,8 @@
 {
   "version": 2,
   "functions": {
-    "api/index.ts": {
-      "runtime": "nodejs18.x",
-      "includeFiles": "prisma/**"
+    "api/**/*.ts": {
+      "runtime": "vercel-node@20.0.0"
     }
   },
   "rewrites": [
