@@ -12,7 +12,7 @@
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
-    "vercel-build": "prisma generate && tsc"
+    "vercel-build": "prisma generate && tsc && tsc api/index.ts --outDir dist/api --moduleResolution node --esModuleInterop"
   },
   "dependencies": {
     "@prisma/client": "^5.7.1",
