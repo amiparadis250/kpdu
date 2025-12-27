@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { User, UserRole } from '@/types/voting';
-import { api } from '@/lib/api';
 import { toast } from 'react-toastify';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 interface AuthContextType {
   user: User | null;
@@ -21,14 +22,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const initAuth = async () => {
-      const token = localStorage.getItem('auth_token');
+      const token = localStorage.getItem('token');
       if (token) {
         try {
-          const profile = (await api.getProfile()) as { user: User };
-          setUser(profile.user);
+          const response = await fetch(`${API_URL}/api/auth/profile`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            setUser(data.user);
+          } else {
+            localStorage.removeItem('token');
+          }
         } catch (error) {
-          localStorage.removeItem('auth_token');
-          api.clearToken();
+          localStorage.removeItem('token');
         }
       }
       setIsLoading(false);
@@ -39,17 +50,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (memberId: string, nationalId: string) => {
     try {
       setIsLoading(true);
-      const response: { token?: string; requiresOTP?: boolean; user?: User } = await api.login(memberId, nationalId);
+      const response = await fetch(`${API_URL}/api/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ memberId, nationalId })
+      });
       
-      if (response.requiresOTP) {
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.message || 'Login failed');
+      }
+      
+      if (data.requiresOTP) {
         toast.info('OTP sent to your email. Please verify to continue.');
         return;
       }
       
-      if (response.token) {
-        api.setToken(response.token);
-        setUser(response.user);
-        localStorage.setItem('kmpdu_user', JSON.stringify(response.user));
+      if (data.token) {
+        localStorage.setItem('token', data.token);
+        setUser(data.user);
         toast.success('Login successful!');
       }
     } catch (error: any) {
@@ -60,15 +82,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const verifyOTP = async (email: string, otp: string) => {
+  const verifyOTP = async (memberId: string, otp: string) => {
     try {
       setIsLoading(true);
-      const response: { token?: string; user?: User } = await api.verifyOTP(email, otp);
+      const response = await fetch(`${API_URL}/api/auth/verify-otp`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ memberId, otp })
+      });
       
-      if (response.token) {
-        api.setToken(response.token);
-        setUser(response.user);
-        localStorage.setItem('kmpdu_user', JSON.stringify(response.user));
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.message || 'OTP verification failed');
+      }
+      
+      if (data.token) {
+        localStorage.setItem('token', data.token);
+        setUser(data.user);
         toast.success('OTP verified successfully!');
       }
     } catch (error: any) {
@@ -81,8 +114,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = () => {
     setUser(null);
-    api.clearToken();
-    localStorage.removeItem('kmpdu_user');
+    localStorage.removeItem('token');
     toast.info('Logged out successfully');
   };
 

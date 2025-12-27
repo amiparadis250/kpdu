@@ -16,7 +16,6 @@ import {
   SuperuseradminSettings,
 } from "@/types/voting";
 import { useAuth } from "./AuthContext";
-import { api } from "@/lib/api";
 import { toast } from "react-toastify";
 
 export type VotingLevel = "national" | "branch" | null;
@@ -103,9 +102,20 @@ export function VotingProvider({ children }: { children: ReactNode }) {
     try {
       setLoading(true);
       console.log('Loading positions for user:', user?.role, user?.memberId);
-      const response = await api.getPositions() as { positions: Position[] };
-      console.log('API response:', response);
-      setPositions(response.positions || []);
+      const response = await fetch('http://localhost:5000/api/elections/positions', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to load positions');
+      }
+      
+      const data = await response.json();
+      console.log('API response:', data);
+      setPositions(data.positions || []);
     } catch (error: any) {
       console.error('Failed to load positions:', error);
       toast.error('Failed to load positions');
@@ -192,7 +202,24 @@ export function VotingProvider({ children }: { children: ReactNode }) {
 
       try {
         // Call backend API to cast vote
-        const response = await api.castVote(user.id, [{ positionId, candidateId }]) as { blockchainTxId: string };
+        const response = await fetch('http://localhost:5000/api/votes/cast', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            userId: user.id,
+            votes: [{ positionId, candidateId }]
+          })
+        });
+        
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.message || 'Failed to cast vote');
+        }
+        
+        const data = await response.json();
         
         // Create receipt from response
         const receipt: VoteReceipt = {
@@ -202,8 +229,8 @@ export function VotingProvider({ children }: { children: ReactNode }) {
           candidateId,
           candidateName: candidate.name,
           timestamp: new Date(),
-          verificationToken: response.blockchainTxId || 'pending',
-          blockchainHash: response.blockchainTxId || 'pending',
+          verificationToken: data.blockchainTxId || 'pending',
+          blockchainHash: data.blockchainTxId || 'pending',
         };
 
         // Update local state
