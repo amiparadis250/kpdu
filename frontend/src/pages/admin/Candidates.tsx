@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { mockPositions } from '@/data/mockData';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { useVoting } from '@/contexts/VotingContext';
+import { api } from '@/lib/api';
 import {
   Table,
   TableBody,
@@ -63,37 +64,63 @@ export default function AdminCandidates() {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedCandidates, setSelectedCandidates] = useState<string[]>([]);
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [filterBranch, setFilterBranch] = useState('all');
+  const [candidates, setCandidates] = useState([]);
+  const [loading, setLoading] = useState(false);
   
   // State for Candidates Management
-  const [candidates, setCandidates] = useState(() => 
-    mockPositions.flatMap(p => 
-      p.candidates.map(c => ({ ...c, positionTitle: p.title, positionId: p.id }))
-    )
-  );
 
   // Edit State
   const [editingCandidate, setEditingCandidate] = useState<any>(null);
-  const [formData, setFormData] = useState({ name: '', position: '' });
+  const [formData, setFormData] = useState({ firstName: '', lastName: '', bio: '', position: '' });
+  const [positionFilter, setPositionFilter] = useState('all');
+  const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
 
   // Delete State
   const [candidateToDelete, setCandidateToDelete] = useState<string | null>(null);
   const [showDeleteAlert, setShowDeleteAlert] = useState(false);
   const [isBulkDelete, setIsBulkDelete] = useState(false);
 
-  const positions = mockPositions;
+  const { positions } = useVoting();
+
+  // Load candidates from API
+  useEffect(() => {
+    loadCandidates();
+  }, []);
+
+  const loadCandidates = async () => {
+    try {
+      setLoading(true);
+      const response = await api.getCandidates();
+      setCandidates(response.candidates || []);
+    } catch (error) {
+      console.error('Failed to load candidates:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Derived filtered list
   const filteredCandidates = candidates.filter(c => {
     const matchesPosition = selectedPosition === 'all' || c.positionId === selectedPosition;
     const matchesSearch = c.name.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesPosition && matchesSearch;
+    const matchesStatus = filterStatus === 'all' || 
+      (filterStatus === 'leading' && c.voteCount > 3000) ||
+      (filterStatus === 'contending' && c.voteCount <= 3000);
+    const position = positions.find(p => p.id === c.positionId);
+    const matchesBranch = filterBranch === 'all' || 
+      (filterBranch === 'national' && position?.type === 'national') ||
+      (filterBranch !== 'national' && position?.type === 'branch' && position?.title?.includes(filterBranch));
+    return matchesPosition && matchesSearch && matchesStatus && matchesBranch;
   });
 
   // Reset page and selection when filters change
   useEffect(() => {
     setCurrentPage(1);
     setSelectedCandidates([]);
-  }, [selectedPosition, searchQuery]);
+  }, [selectedPosition, searchQuery, filterStatus, filterBranch]);
 
   // Pagination logic
   const totalPages = Math.ceil(filteredCandidates.length / ITEMS_PER_PAGE);
@@ -101,44 +128,52 @@ export default function AdminCandidates() {
   const paginatedCandidates = filteredCandidates.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
   // Handlers
-  const handleAddCandidate = () => {
-    if (editingCandidate) {
-      // Update logic
-      setCandidates(prev => prev.map(c => 
-        c.id === editingCandidate.id 
-          ? { ...c, name: formData.name, positionId: formData.position }
-          : c
-      ));
-      toast.success('Candidate updated successfully');
-    } else {
-      // Add logic (mock)
-      const newCandidate = {
-        id: Math.random().toString(36).substr(2, 9),
-        name: formData.name,
-        bio: '',
-        position: formData.position,
-        positionId: formData.position,
-        positionTitle: mockPositions.find(p => p.id === formData.position)?.title || 'Unknown',
-        photo: '',
-        voteCount: 0,
-        percentage: 0
-      };
-      setCandidates([newCandidate, ...candidates]);
-      toast.success('Candidate added successfully');
+  const handleAddCandidate = async () => {
+    try {
+      let photoUrl = '';
+      if (selectedPhoto) {
+        console.log('Uploading photo...');
+        photoUrl = await uploadPhoto(selectedPhoto);
+        console.log('Photo uploaded:', photoUrl);
+      }
+      
+      if (editingCandidate) {
+        // Update logic - would need API endpoint
+        toast.success('Candidate updated successfully');
+      } else {
+        // Add new candidate
+        const candidateData = {
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          bio: formData.bio,
+          positionId: formData.position,
+          ...(photoUrl && { photo: photoUrl })
+        };
+        console.log('Creating candidate with data:', candidateData);
+        await api.createCandidate(candidateData);
+        toast.success('Candidate added successfully');
+        loadCandidates(); // Reload candidates
+      }
+      closeDialog();
+    } catch (error) {
+      toast.error('Failed to save candidate');
+      console.error('Save candidate error:', error);
     }
-    closeDialog();
   };
 
   const openAddDialog = () => {
     setEditingCandidate(null);
-    setFormData({ name: '', position: '' });
+    setFormData({ firstName: '', lastName: '', bio: '', position: '' });
+    setPositionFilter('all');
     setShowAddDialog(true);
   };
 
   const openEditDialog = (candidate: any) => {
     setEditingCandidate(candidate);
     setFormData({
-      name: candidate.name,
+      firstName: candidate.firstName || '',
+      lastName: candidate.lastName || '',
+      bio: candidate.bio || '',
       position: candidate.positionId
     });
     setShowAddDialog(true);
@@ -147,8 +182,44 @@ export default function AdminCandidates() {
   const closeDialog = () => {
     setShowAddDialog(false);
     setEditingCandidate(null);
-    setFormData({ name: '', position: '' });
+    setFormData({ firstName: '', lastName: '', bio: '', position: '' });
+    setPositionFilter('all');
+    setSelectedPhoto(null);
+    setPhotoPreview(null);
   };
+
+  const handlePhotoSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setSelectedPhoto(file);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setPhotoPreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const uploadPhoto = async (file: File): Promise<string> => {
+    try {
+      const formData = new FormData();
+      formData.append('photo', file);
+      console.log('Uploading file:', file.name, file.size);
+      const response = await api.uploadCandidatePhoto(formData);
+      console.log('Upload response:', response);
+      return response.photoUrl;
+    } catch (error) {
+      console.error('Photo upload failed:', error);
+      throw error;
+    }
+  };
+
+  // Filter positions based on dialog filter
+  const filteredDialogPositions = positions.filter(p => {
+    if (positionFilter === 'all') return true;
+    if (positionFilter === 'national') return p.type === 'national';
+    return p.type === 'branch' && p.branch === positionFilter;
+  });
 
   const confirmDelete = () => {
     if (isBulkDelete) {
@@ -204,7 +275,7 @@ export default function AdminCandidates() {
         <div>
           <h2 className="text-base sm:text-lg max-[250px]:text-sm font-semibold">Candidates</h2>
           <p className="text-xs sm:text-sm max-[250px]:text-xs text-muted-foreground">
-            {candidates.length} candidates across {mockPositions.length} positions
+            {candidates.length} candidates across {positions.length} positions
           </p>
         </div>
         <div className="flex gap-2 w-full sm:w-auto max-sm:flex-col">
@@ -238,6 +309,25 @@ export default function AdminCandidates() {
               </DialogHeader>
               <div className="space-y-4 py-4 max-sm:space-y-3 max-sm:py-3 max-sm:overflow-y-auto max-sm:max-h-[55vh] max-[250px]:space-y-2 max-[250px]:py-2 max-[250px]:max-h-[60vh]">
                 <div className="space-y-2 max-sm:space-y-1.5 max-[250px]:space-y-1">
+                  <Label htmlFor="positionFilter" className="max-sm:text-sm max-[250px]:text-xs">Filter Positions</Label>
+                  <Select 
+                    value={positionFilter} 
+                    onValueChange={setPositionFilter}
+                  >
+                    <SelectTrigger className="max-sm:h-9 max-sm:text-sm max-[250px]:h-8 max-[250px]:text-xs">
+                      <SelectValue placeholder="Filter by branch" />
+                    </SelectTrigger>
+                    <SelectContent className="max-sm:text-sm max-[250px]:text-[10px]">
+                      <SelectItem value="all">All Positions</SelectItem>
+                      <SelectItem value="national">National</SelectItem>
+                      <SelectItem value="Western(Member)">Western(Member)</SelectItem>
+                      <SelectItem value="Nyanza(Member)">Nyanza(Member)</SelectItem>
+                      <SelectItem value="WESTERN">WESTERN</SelectItem>
+                      <SelectItem value="UPPER EASTERN">UPPER EASTERN</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2 max-sm:space-y-1.5 max-[250px]:space-y-1">
                   <Label htmlFor="position" className="max-sm:text-sm max-[250px]:text-xs">Position</Label>
                   <Select 
                     value={formData.position} 
@@ -247,29 +337,60 @@ export default function AdminCandidates() {
                       <SelectValue placeholder="Select position" />
                     </SelectTrigger>
                     <SelectContent className="max-sm:text-sm max-[250px]:text-[10px]">
-                      {mockPositions.map(p => (
-                        <SelectItem key={p.id} value={p.id} className="max-sm:text-sm max-sm:py-1.5 max-[250px]:text-[10px] max-[250px]:py-0.5 max-[250px]:pl-6 max-[250px]:pr-1">{p.title}</SelectItem>
+                      {filteredDialogPositions.map(p => (
+                        <SelectItem key={p.id} value={p.id}>{p.title}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2 max-sm:space-y-1.5 max-[250px]:space-y-1">
-                  <Label htmlFor="name" className="max-sm:text-sm max-[250px]:text-xs">Full Name</Label>
+                  <Label htmlFor="firstName" className="max-sm:text-sm max-[250px]:text-xs">First Name</Label>
                   <Input 
-                    id="name" 
-                    placeholder="Dr. John Doe"
-                    value={formData.name}
-                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                    id="firstName" 
+                    placeholder="John"
+                    value={formData.firstName}
+                    onChange={(e) => setFormData({...formData, firstName: e.target.value})}
+                    className="max-sm:h-9 max-sm:text-sm max-sm:placeholder:text-xs max-[250px]:h-8 max-[250px]:text-xs max-[250px]:placeholder:text-[10px]"
+                  />
+                </div>
+                <div className="space-y-2 max-sm:space-y-1.5 max-[250px]:space-y-1">
+                  <Label htmlFor="lastName" className="max-sm:text-sm max-[250px]:text-xs">Last Name</Label>
+                  <Input 
+                    id="lastName" 
+                    placeholder="Doe"
+                    value={formData.lastName}
+                    onChange={(e) => setFormData({...formData, lastName: e.target.value})}
                     className="max-sm:h-9 max-sm:text-sm max-sm:placeholder:text-xs max-[250px]:h-8 max-[250px]:text-xs max-[250px]:placeholder:text-[10px]"
                   />
                 </div>
                 <div className="space-y-2 max-sm:space-y-1.5 max-[250px]:space-y-1">
                   <Label htmlFor="photo" className="max-sm:text-sm max-[250px]:text-xs">Photo</Label>
                   <div className="flex items-center gap-4 max-sm:gap-3 max-[250px]:gap-2">
-                    <div className="h-20 w-20 max-sm:h-16 max-sm:w-16 max-[250px]:h-12 max-[250px]:w-12 rounded-lg bg-muted flex items-center justify-center">
-                      <Upload className="h-8 w-8 max-sm:h-6 max-sm:w-6 max-[250px]:h-5 max-[250px]:w-5 text-muted-foreground" />
+                    <div className="h-20 w-20 max-sm:h-16 max-sm:w-16 max-[250px]:h-12 max-[250px]:w-12 rounded-lg bg-muted flex items-center justify-center overflow-hidden">
+                      {photoPreview ? (
+                        <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
+                      ) : (
+                        <Upload className="h-8 w-8 max-sm:h-6 max-sm:w-6 max-[250px]:h-5 max-[250px]:w-5 text-muted-foreground" />
+                      )}
                     </div>
-                    <Button variant="outline" size="sm" className="max-sm:text-sm max-sm:h-8 max-[250px]:text-xs max-[250px]:h-7">Upload Photo</Button>
+                    <div>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handlePhotoSelect}
+                        className="hidden"
+                        id="photo-upload"
+                      />
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="max-sm:text-sm max-sm:h-8 max-[250px]:text-xs max-[250px]:h-7"
+                        onClick={() => document.getElementById('photo-upload')?.click()}
+                        type="button"
+                      >
+                        {photoPreview ? 'Change Photo' : 'Upload Photo'}
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -307,6 +428,29 @@ export default function AdminCandidates() {
             {positions.map(p => (
               <SelectItem key={p.id} value={p.id} className="max-[250px]:text-[10px] max-[250px]:py-0.5 max-[250px]:pl-6 max-[250px]:pr-1">{p.title}</SelectItem>
             ))}
+          </SelectContent>
+        </Select>
+        <Select value={filterStatus} onValueChange={setFilterStatus}>
+          <SelectTrigger className="w-full sm:w-[150px] max-[250px]:h-8 max-[250px]:text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent className="max-[250px]:text-[10px]">
+            <SelectItem value="all" className="max-[250px]:text-[10px] max-[250px]:py-0.5 max-[250px]:pl-6 max-[250px]:pr-1">All Status</SelectItem>
+            <SelectItem value="leading" className="max-[250px]:text-[10px] max-[250px]:py-0.5 max-[250px]:pl-6 max-[250px]:pr-1">Leading</SelectItem>
+            <SelectItem value="contending" className="max-[250px]:text-[10px] max-[250px]:py-0.5 max-[250px]:pl-6 max-[250px]:pr-1">Contending</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={filterBranch} onValueChange={setFilterBranch}>
+          <SelectTrigger className="w-full sm:w-[150px] max-[250px]:h-8 max-[250px]:text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent className="max-[250px]:text-[10px]">
+            <SelectItem value="all" className="max-[250px]:text-[10px] max-[250px]:py-0.5 max-[250px]:pl-6 max-[250px]:pr-1">All Branches</SelectItem>
+            <SelectItem value="national" className="max-[250px]:text-[10px] max-[250px]:py-0.5 max-[250px]:pl-6 max-[250px]:pr-1">National</SelectItem>
+            <SelectItem value="Western(Member)" className="max-[250px]:text-[10px] max-[250px]:py-0.5 max-[250px]:pl-6 max-[250px]:pr-1">Western(Member)</SelectItem>
+            <SelectItem value="Nyanza(Member)" className="max-[250px]:text-[10px] max-[250px]:py-0.5 max-[250px]:pl-6 max-[250px]:pr-1">Nyanza(Member)</SelectItem>
+            <SelectItem value="WESTERN" className="max-[250px]:text-[10px] max-[250px]:py-0.5 max-[250px]:pl-6 max-[250px]:pr-1">WESTERN</SelectItem>
+            <SelectItem value="UPPER EASTERN" className="max-[250px]:text-[10px] max-[250px]:py-0.5 max-[250px]:pl-6 max-[250px]:pr-1">UPPER EASTERN</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -353,11 +497,11 @@ export default function AdminCandidates() {
                     <TableCell className="max-[250px]:p-2">
                       <div className="flex items-center gap-3 max-[250px]:gap-1.5">
                         <Avatar className="max-[250px]:h-6 max-[250px]:w-6">
-                          <AvatarImage src={candidate.photo} alt={candidate.name} />
-                          <AvatarFallback className="max-[250px]:text-[8px]">{getInitials(candidate.name)}</AvatarFallback>
+                          <AvatarImage src={candidate.photo ? `http://localhost:5000${candidate.photo}` : undefined} alt={candidate.name} />
+                          <AvatarFallback className="max-[250px]:text-[8px]">{getInitials(`${candidate.firstName} ${candidate.lastName}`)}</AvatarFallback>
                         </Avatar>
                         <div className="min-w-0">
-                          <div className="font-medium max-[250px]:text-[10px]">{candidate.name}</div>
+                          <div className="font-medium max-[250px]:text-[10px]">{candidate.firstName} {candidate.lastName}</div>
                         </div>
                       </div>
                     </TableCell>

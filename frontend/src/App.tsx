@@ -17,7 +17,6 @@ import { ThemeProvider } from "next-themes";
 // Pages
 import Index from "./pages/Index";
 import Login from "./pages/Login";
-// MemberDashboard removed
 import Ballot from "./pages/member/Ballot";
 import MemberNotifications from "./pages/member/Notifications";
 import MemberSettings from "./pages/member/Settings";
@@ -42,7 +41,20 @@ function ProtectedRoute({
   children: React.ReactNode;
   role?: "member" | "admin" | "superuseradmin";
 }) {
-  // Disabled authentication for testing - allow access to all routes
+  const { isAuthenticated, isLoading } = useAuth();
+  
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+  
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+  
   return <>{children}</>;
 }
 
@@ -51,7 +63,7 @@ function AppRoutes() {
 
   return (
     <Routes>
-      {/* Public Routes with default theme */}
+      {/* Public Routes */}
       <Route
         element={
           <ThemeProvider
@@ -66,7 +78,6 @@ function AppRoutes() {
       >
         <Route path="/" element={<Index />} />
         <Route path="/login" element={<Login />} />
-        <Route path="*" element={<NotFound />} />
       </Route>
 
       {/* Member Routes with Member Theme */}
@@ -225,6 +236,9 @@ function AppRoutes() {
           }
         />
       </Route>
+
+      {/* Catch-all route */}
+      <Route path="*" element={<NotFound />} />
     </Routes>
   );
 }
