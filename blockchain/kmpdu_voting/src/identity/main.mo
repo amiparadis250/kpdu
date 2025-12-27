@@ -1,5 +1,4 @@
 import HashMap "mo:base/HashMap";
-import Principal "mo:base/Principal";
 import Text "mo:base/Text";
 
 persistent actor Identity {

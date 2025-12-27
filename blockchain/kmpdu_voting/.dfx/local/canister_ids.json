@@ -1,14 +1,20 @@
 {
   "__Candid_UI": {
-    "local": "umunu-kh777-77774-qaaca-cai"
+    "local": "ucwa4-rx777-77774-qaada-cai"
   },
-  "identity_canister": {
+  "election_factory": {
     "local": "uxrrr-q7777-77774-qaaaq-cai"
   },
-  "results_canister": {
+  "election_voting": {
     "local": "u6s2n-gx777-77774-qaaba-cai"
   },
-  "voting_canister": {
+  "identity_canister": {
     "local": "uzt4z-lp777-77774-qaabq-cai"
+  },
+  "results_canister": {
+    "local": "umunu-kh777-77774-qaaca-cai"
+  },
+  "voting_canister": {
+    "local": "ulvla-h7777-77774-qaacq-cai"
   }
 }

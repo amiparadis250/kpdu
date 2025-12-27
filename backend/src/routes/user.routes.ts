@@ -97,4 +97,28 @@ router.get('/branch-stats',
   userController.getUsersByBranch
 );
 
+/**
+ * @swagger
+ * /api/users/register-blockchain:
+ *   post:
+ *     summary: Register all users to blockchain voting system (SuperAdmin only)
+ *     tags: [User Management]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Users registered to blockchain successfully
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Insufficient permissions
+ *       500:
+ *         description: Registration failed
+ */
+router.post('/register-blockchain', 
+  authenticateToken,
+  requireRole(['SUPERUSERADMIN']),
+  userController.registerAllUsersToBlockchain
+);
+
 export default router;

@@ -1,0 +1,21 @@
+// Version: 1.0.0
+type ElectionInfo__1751092 =
+  {
+    branchId : ?Text;
+    canisterId : Principal;
+    createdAt : Int;
+    createdBy : Principal;
+    electionId : Text;
+    electionType : ElectionType__843729970;
+    endDate : Int;
+    startDate : Int;
+    status : ElectionStatus__73634565;
+    title : Text
+  };
+type ElectionStatus__73634565 = {#ACTIVE; #CANCELLED; #COMPLETED; #DRAFT};
+type ElectionType__843729970 = {#BRANCH; #NATIONAL};
+actor {
+  stable var admins : [Principal];
+  stable var elections : [ElectionInfo__1751092];
+  stable var totalElectionsCreated : Nat
+};

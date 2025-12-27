@@ -1,6 +1,11 @@
 // 🔗 ICP Blockchain Integration Service
 // This service handles all blockchain operations for vote storage and retrieval
 
+import { exec } from 'child_process';
+import { promisify } from 'util';
+
+const execAsync = promisify(exec);
+
 interface Vote {
   positionId: string;
   candidateId: string;
@@ -112,14 +117,216 @@ class BlockchainService {
   }
 
   /**
-   * Generate anonymous hash for voter
-   * - No way to trace back to actual user
-   * - Used for blockchain storage
+   * 🔗 BLOCKCHAIN: Register user for voting on ICP blockchain
+   * - Registers user in identity canister
+   * - Enables voting eligibility
    */
-  generateAnonymousVoterHash(userId: string, salt: string): string {
-    // TODO: Implement proper cryptographic hashing
-    // This should use a one-way hash that cannot be reversed
-    return `anon_${Math.random().toString(36)}_${Date.now()}`;
+  async registerUserForVoting(memberId: string, branchId: string): Promise<{
+    success: boolean;
+    message: string;
+    alreadyRegistered?: boolean;
+  }> {
+    try {
+      const blockchainPath = '/home/benjamin/programming/kpdu/blockchain/kmpdu_voting';
+      const command = `cd ${blockchainPath} && dfx canister call identity_canister registerVoter '("${memberId}", "${branchId}")'`;
+      
+      const { stdout, stderr } = await execAsync(command);
+      
+      if (stderr && !stderr.includes('Warning')) {
+        return {
+          success: false,
+          message: `Registration failed: ${stderr}`
+        };
+      }
+      
+      if (stdout.includes('true')) {
+        return {
+          success: true,
+          message: 'User registered successfully'
+        };
+      } else {
+        return {
+          success: true,
+          message: 'User already registered',
+          alreadyRegistered: true
+        };
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        message: `Registration error: ${error.message}`
+      };
+    }
+  }
+
+  /**
+   * 🔗 BLOCKCHAIN: Verify if user is registered for voting
+   */
+  async verifyUserRegistration(memberId: string): Promise<{
+    isRegistered: boolean;
+    voterData?: any;
+    message: string;
+  }> {
+    try {
+      const blockchainPath = '/home/benjamin/programming/kpdu/blockchain/kmpdu_voting';
+      const command = `cd ${blockchainPath} && dfx canister call identity_canister verifyVoter '("${memberId}")'`;
+      
+      const { stdout, stderr } = await execAsync(command);
+      
+      if (stderr) {
+        return {
+          isRegistered: false,
+          message: `Verification failed: ${stderr}`
+        };
+      }
+      
+      if (stdout.includes('null')) {
+        return {
+          isRegistered: false,
+          message: 'User not registered'
+        };
+      } else {
+        return {
+          isRegistered: true,
+          voterData: stdout,
+          message: 'User is registered'
+        };
+      }
+    } catch (error: any) {
+      return {
+        isRegistered: false,
+        message: `Verification error: ${error.message}`
+      };
+    }
+  }
+
+  /**
+   * 🔗 BLOCKCHAIN: Legacy method for voting controller compatibility
+   */
+  async verifyVoter(memberId: string): Promise<any> {
+    try {
+      const blockchainPath = '/home/benjamin/programming/kpdu/blockchain/kmpdu_voting';
+      const command = `cd ${blockchainPath} && dfx canister call identity_canister verifyVoter '("${memberId}")'`;
+      
+      const { stdout } = await execAsync(command);
+      
+      if (stdout.includes('null')) {
+        return null;
+      }
+      
+      // Simple string parsing instead of complex regex
+      const lines = stdout.split('\n');
+      let memberId_val = '';
+      let branchId_val = '';
+      let hasVotedBranch_val = false;
+      let hasVotedNational_val = false;
+      
+      for (const line of lines) {
+        if (line.includes('memberId =')) {
+          const match = line.match(/"([^"]+)"/);
+          if (match) memberId_val = match[1];
+        }
+        if (line.includes('branchId =')) {
+          const match = line.match(/"([^"]+)"/);
+          if (match) branchId_val = match[1];
+        }
+        if (line.includes('hasVotedBranch =')) {
+          hasVotedBranch_val = line.includes('true');
+        }
+        if (line.includes('hasVotedNational =')) {
+          hasVotedNational_val = line.includes('true');
+        }
+      }
+      
+      if (memberId_val) {
+        return {
+          memberId: memberId_val,
+          branchId: branchId_val,
+          hasVotedBranch: hasVotedBranch_val,
+          hasVotedNational: hasVotedNational_val
+        };
+      }
+      
+      return null;
+    } catch (error: any) {
+      return null;
+    }
+  }
+
+  /**
+   * 🔗 BLOCKCHAIN: Cast vote
+   */
+  async castVote(memberId: string, positionId: string, candidateId: string, level: string): Promise<boolean> {
+    try {
+      const blockchainPath = '/home/benjamin/programming/kpdu/blockchain/kmpdu_voting';
+      const command = `cd ${blockchainPath} && dfx canister call results_canister addVote '("${positionId}", "${candidateId}")'`;
+      
+      const { stdout, stderr } = await execAsync(command);
+      
+      return !stderr && (stdout.includes('()') || stdout.trim() === '');
+    } catch (error: any) {
+      console.error('Cast vote error:', error);
+      return false;
+    }
+  }
+
+  /**
+   * 🔗 BLOCKCHAIN: Mark voter as voted
+   */
+  async markVoted(memberId: string, level: string): Promise<boolean> {
+    try {
+      const blockchainPath = '/home/benjamin/programming/kpdu/blockchain/kmpdu_voting';
+      const command = `cd ${blockchainPath} && dfx canister call identity_canister markVoted '("${memberId}", "${level}")'`;
+      
+      const { stdout, stderr } = await execAsync(command);
+      
+      return !stderr && stdout.includes('true');
+    } catch (error: any) {
+      return false;
+    }
+  }
+
+  /**
+   * 🔗 BLOCKCHAIN: Get voting results
+   */
+  async getResults(positionId: string): Promise<Array<[string, number]>> {
+    try {
+      const blockchainPath = '/home/benjamin/programming/kpdu/blockchain/kmpdu_voting';
+      const command = `cd ${blockchainPath} && dfx canister call results_canister getResults '("${positionId}")'`;
+      
+      const { stdout, stderr } = await execAsync(command);
+      
+      if (stderr || !stdout) {
+        return [];
+      }
+      
+      // Parse results from Motoko output: (vec { record { "candidateId"; 1 : nat } })
+      const results: Array<[string, number]> = [];
+      const matches = stdout.match(/record\s*\{\s*"([^"]+)"\s*;\s*(\d+)\s*:\s*nat\s*\}/g);
+      
+      if (matches) {
+        for (const match of matches) {
+          const parts = match.match(/"([^"]+)"\s*;\s*(\d+)/);
+          if (parts) {
+            results.push([parts[1], parseInt(parts[2])]);
+          }
+        }
+      }
+      
+      return results;
+    } catch (error: any) {
+      console.error('Get results error:', error);
+      return [];
+    }
+  }
+
+  /**
+   * 🔗 BLOCKCHAIN: Get votes (placeholder)
+   */
+  async getVotes(positionId: string): Promise<any[]> {
+    // Individual votes remain private for anonymity
+    // Use getResults() instead for vote counts
+    return [];
   }
 }
 

@@ -15,6 +15,15 @@
     "results_canister": {
       "type": "motoko",
       "main": "src/results/main.mo"
+    },
+    "election_factory": {
+      "type": "motoko",
+      "main": "src/election_factory/main.mo"
+    },
+
+    "election_voting": {
+      "type": "motoko",
+      "main": "src/election_voting/main.mo"
     }
   },
 

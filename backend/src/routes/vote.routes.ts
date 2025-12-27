@@ -175,7 +175,68 @@ router.get('/history/:userId',
  *                 cryptographicProof:
  *                   type: string
  */
-// This endpoint would be implemented when blockchain integration is added
-// router.get('/verify/:txId', voteController.verifyVoteOnBlockchain);
+/**
+ * @swagger
+ * /api/votes/verify/{voteId}:
+ *   get:
+ *     summary: 🔗 BLOCKCHAIN ENDPOINT - Verify vote on blockchain
+ *     tags: [🔗 Blockchain - Voting]
+ *     description: |
+ *       **🔗 BLOCKCHAIN INTEGRATION POINT**
+ *       
+ *       Verify vote integrity using blockchain vote ID:
+ *       - Confirms vote exists on ICP blockchain
+ *       - Validates vote has not been tampered with
+ *       - Returns cryptographic proof without revealing vote content
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: voteId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Blockchain vote ID
+ *     responses:
+ *       200:
+ *         description: Vote verification successful
+ *       404:
+ *         description: Vote not found on blockchain
+ */
+router.get('/verify/:voteId', 
+  authenticateToken,
+  voteController.verifyVote
+);
+
+/**
+ * @swagger
+ * /api/votes/results/{positionId}:
+ *   get:
+ *     summary: 🔗 BLOCKCHAIN ENDPOINT - Get voting results from blockchain
+ *     tags: [🔗 Blockchain - Results]
+ *     description: |
+ *       **🔗 BLOCKCHAIN INTEGRATION POINT**
+ *       
+ *       Get real-time voting results from ICP blockchain:
+ *       - Aggregated vote counts from blockchain
+ *       - Cryptographically verified results
+ *       - No individual vote data exposed
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: positionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Results retrieved from blockchain
+ */
+router.get('/results/:positionId', 
+  authenticateToken,
+  requireRole(['ADMIN', 'SUPERUSERADMIN']),
+  voteController.getResults
+);
 
 export default router;

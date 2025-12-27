@@ -18,11 +18,20 @@ class VoteController {
 
       // Register voter on blockchain if not already registered
       try {
-        await blockchainService.registerVoter(user.memberId, user.branchId);
+        await blockchainService.registerVoter(user.memberId, user.branch);
       } catch (error) {
-        console.log('Voter already registered or registration failed');
+        console.log('Voter registration failed or already exists:', error.message);
       }
 
+      // Get active elections from blockchain
+      let activeElections = [];
+      try {
+        activeElections = await blockchainService.getActiveElections();
+      } catch (error) {
+        console.warn('Could not fetch active elections from blockchain:', error.message);
+      }
+
+      // Get elections from database as fallback
       const elections = await prisma.election.findMany({
         where: {
           status: 'ACTIVE',
@@ -45,12 +54,14 @@ class VoteController {
 
       res.json({ 
         elections,
+        activeBlockchainElections: activeElections,
         user: {
           id: user.id,
           memberName: user.memberName,
           branch: user.branch,
           hasVoted: user.hasVoted
-        }
+        },
+        blockchainRegistered: true
       });
     } catch (error) {
       console.error('Get ballot error:', error);
@@ -81,34 +92,59 @@ class VoteController {
       // Cast votes on blockchain
       const voteResults = [];
       for (const vote of votes) {
-        const { positionId, candidateId } = vote;
-        const level = vote.level || 'national'; // default to national
+        const { positionId, candidateId, level } = vote;
         
-        const result = await blockchainService.castVote(
-          user.memberId, 
-          positionId, 
-          candidateId, 
-          level
-        );
-        
-        if (result) {
-          await blockchainService.markVoted(user.memberId, level);
-          voteResults.push({ positionId, candidateId, success: true });
-        } else {
-          voteResults.push({ positionId, candidateId, success: false });
+        try {
+          const result = await blockchainService.castVote(
+            user.memberId,
+            user.nationalId,
+            positionId,
+            candidateId,
+            user.branch
+          );
+          
+          if (result.ok) {
+            await blockchainService.markVoted(user.memberId, level || 'national');
+            voteResults.push({ 
+              positionId, 
+              candidateId, 
+              success: true, 
+              voteId: result.ok 
+            });
+          } else {
+            voteResults.push({ 
+              positionId, 
+              candidateId, 
+              success: false, 
+              error: result.err 
+            });
+          }
+        } catch (error) {
+          voteResults.push({ 
+            positionId, 
+            candidateId, 
+            success: false, 
+            error: error.message 
+          });
         }
       }
 
-      // Mark user as voted in database
-      await prisma.user.update({
-        where: { id: userId },
-        data: { hasVoted: true }
-      });
+      // Mark user as voted in database if any vote succeeded
+      const successfulVotes = voteResults.filter(v => v.success);
+      if (successfulVotes.length > 0) {
+        await prisma.user.update({
+          where: { id: userId },
+          data: { hasVoted: true }
+        });
+      }
 
       res.json({ 
-        message: 'Votes cast successfully on blockchain',
+        message: `${successfulVotes.length} votes cast successfully on blockchain`,
         results: voteResults,
-        timestamp: new Date().toISOString()
+        totalVotes: votes.length,
+        successfulVotes: successfulVotes.length,
+        timestamp: new Date().toISOString(),
+        source: 'blockchain'
       });
     } catch (error) {
       console.error('Cast vote error:', error);
@@ -130,14 +166,21 @@ class VoteController {
       }
 
       // Get voter status from blockchain
-      const voter = await blockchainService.verifyVoter(user.memberId);
+      let blockchainStatus = null;
+      try {
+        blockchainStatus = await blockchainService.verifyVoter(user.memberId);
+      } catch (error) {
+        console.warn('Could not fetch blockchain voter status:', error.message);
+      }
       
       const history = {
         hasVoted: user.hasVoted,
         votedAt: user.lastLogin,
-        blockchainStatus: voter ? {
-          hasVotedNational: voter.hasVotedNational,
-          hasVotedBranch: voter.hasVotedBranch
+        blockchainStatus: blockchainStatus ? {
+          hasVotedNational: blockchainStatus.hasVotedNational,
+          hasVotedBranch: blockchainStatus.hasVotedBranch,
+          memberId: blockchainStatus.memberId,
+          branchId: blockchainStatus.branchId
         } : null,
         elections: user.hasVoted ? ['General Election 2024'] : []
       };
@@ -153,18 +196,59 @@ class VoteController {
     try {
       const { positionId } = req.params;
       
-      const results = await blockchainService.getResults(positionId);
+      const results = await blockchainService.getResults();
+      const stats = await blockchainService.getElectionStats();
+      
+      // Filter results by position if specified
+      const filteredResults = positionId 
+        ? results.filter(r => r.positionId === positionId)
+        : results;
       
       res.json({ 
         success: true,
-        results: results.map(([candidateId, votes]) => ({
-          candidateId,
-          votes: Number(votes)
-        }))
+        results: filteredResults,
+        statistics: stats,
+        positionId: positionId || 'all',
+        source: 'blockchain',
+        timestamp: new Date().toISOString()
       });
     } catch (error) {
       console.error('Get results error:', error);
-      res.status(500).json({ message: 'Failed to get results' });
+      res.status(500).json({ 
+        success: false,
+        message: 'Failed to get results from blockchain',
+        error: error.message 
+      });
+    }
+  }
+
+  // Verify individual vote on blockchain
+  async verifyVote(req, res) {
+    try {
+      const { voteId } = req.params;
+      
+      const vote = await blockchainService.verifyVote(voteId);
+      
+      if (vote) {
+        res.json({
+          success: true,
+          vote,
+          verified: vote.verified,
+          source: 'blockchain'
+        });
+      } else {
+        res.status(404).json({
+          success: false,
+          message: 'Vote not found on blockchain'
+        });
+      }
+    } catch (error) {
+      console.error('Verify vote error:', error);
+      res.status(500).json({ 
+        success: false,
+        message: 'Failed to verify vote',
+        error: error.message 
+      });
     }
   }
 }

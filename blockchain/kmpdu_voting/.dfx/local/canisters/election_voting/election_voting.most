@@ -1,0 +1,51 @@
+// Version: 1.0.0
+type Candidate__792326422 =
+  {bio : ?Text; candidateId : Text; name : Text; photo : ?Text};
+type ElectionConfig__424238686 =
+  {
+    branchId : ?Text;
+    description : ?Text;
+    electionId : Text;
+    electionType : ElectionType__513406487;
+    endDate : Int;
+    positions : [Position__607434163];
+    startDate : Int;
+    status : ElectionStatus__611471336;
+    title : Text
+  };
+type ElectionStatus__611471336 = {#ACTIVE; #CANCELLED; #COMPLETED; #DRAFT};
+type ElectionType__513406487 = {#BRANCH; #NATIONAL};
+type Position__607434163 =
+  {
+    candidates : [Candidate__792326422];
+    description : ?Text;
+    maxVotesPerVoter : Nat;
+    positionId : Text;
+    title : Text
+  };
+type VoteCount__572256355 =
+  {candidateId : Text; count : Nat; positionId : Text};
+type Vote__165995352 =
+  {
+    candidateId : Text;
+    positionId : Text;
+    timestamp : Int;
+    verified : Bool;
+    voteId : Text;
+    voterHash : Text
+  };
+type VoterRecord__872921679 =
+  {
+    lastVoteTime : Int;
+    totalVotes : Nat;
+    votedPositions : [Text];
+    voterHash : Text
+  };
+actor {
+  stable var config : ?ElectionConfig__424238686;
+  stable var totalVoters : Nat;
+  stable var totalVotesCast : Nat;
+  stable var voteCounts : [VoteCount__572256355];
+  stable var voterRecords : [VoterRecord__872921679];
+  stable var votes : [Vote__165995352]
+};

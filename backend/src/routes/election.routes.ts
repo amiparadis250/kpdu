@@ -1,10 +1,44 @@
 import { Router } from 'express';
 import { body } from 'express-validator';
-import electionController from '../controllers/election.controller';
+import electionController from '../controllers/election.controller.js';
 import { validateRequest } from '../middleware/validation.middleware';
 import { authenticateToken, requireRole } from '../middleware/auth.middleware';
 
 const router = Router();
+
+/**
+ * @swagger
+ * /api/elections/blockchain/status:
+ *   get:
+ *     summary: Get blockchain connection status
+ *     tags: [🔗 Blockchain - System]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Blockchain status retrieved
+ */
+router.get('/blockchain/status', 
+  authenticateToken,
+  electionController.getBlockchainStatus
+);
+
+/**
+ * @swagger
+ * /api/elections/active:
+ *   get:
+ *     summary: Get active elections from blockchain
+ *     tags: [🔗 Blockchain - Elections]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Active elections retrieved from blockchain
+ */
+router.get('/active', 
+  authenticateToken,
+  electionController.getActiveElections
+);
 
 /**
  * @swagger

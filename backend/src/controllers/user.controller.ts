@@ -3,6 +3,10 @@ import excelService from '../services/excel.service';
 import { prisma } from '../lib/prisma';
 import multer from 'multer';
 import path from 'path';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+
+const execAsync = promisify(exec);
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -109,6 +113,55 @@ class UserController {
     } catch (error: any) {
       console.error('Get branch stats error:', error);
       res.status(500).json({ message: 'Internal server error' });
+    }
+  }
+
+  async registerAllUsersToBlockchain(req: Request, res: Response): Promise<void> {
+    try {
+      const users = await prisma.user.findMany({
+        where: { isActive: true },
+        select: { memberId: true, branchId: true, memberName: true }
+      });
+
+      let registered = 0;
+      let failed = 0;
+      const errors: string[] = [];
+
+      const blockchainPath = '/home/benjamin/programming/kpdu/blockchain/kmpdu_voting';
+      
+      for (const user of users) {
+        try {
+          const command = `cd ${blockchainPath} && dfx canister call identity_canister registerVoter '("${user.memberId}", "${user.branchId || 'DEFAULT'}")'`;
+          
+          const { stdout, stderr } = await execAsync(command);
+          
+          if (stderr) {
+            failed++;
+            errors.push(`${user.memberName} (${user.memberId}): ${stderr}`);
+          } else if (stdout.includes('true')) {
+            registered++;
+          } else {
+            failed++;
+            errors.push(`${user.memberName} (${user.memberId}): Already registered`);
+          }
+        } catch (error: any) {
+          failed++;
+          errors.push(`${user.memberName} (${user.memberId}): ${error.message}`);
+        }
+      }
+
+      res.json({
+        message: 'Blockchain registration completed',
+        results: {
+          total: users.length,
+          registered,
+          failed,
+          errors: errors.slice(0, 10)
+        }
+      });
+    } catch (error: any) {
+      console.error('Blockchain registration error:', error);
+      res.status(500).json({ message: 'Failed to register users to blockchain' });
     }
   }
 }

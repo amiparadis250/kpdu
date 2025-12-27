@@ -1,4 +1,4 @@
-const blockchainService = require('../services/blockchainService');
+const blockchainService = require('../services/blockchain.service').default;
 
 class VotingController {
   async registerVoter(req, res) {
